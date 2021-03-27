@@ -78,3 +78,7 @@ node_modules/
 
 # Flask Profiler files
 flask_profiler.sql
+
+client_secrets.json
+
+venv

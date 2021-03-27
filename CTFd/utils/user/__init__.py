@@ -5,6 +5,7 @@ from flask import abort
 from flask import current_app as app
 from flask import redirect, request, session, url_for
 
+
 from CTFd.cache import cache
 from CTFd.constants.teams import TeamAttrs
 from CTFd.constants.users import UserAttrs
@@ -120,13 +121,17 @@ def get_current_user_type(fallback=None):
 
 
 def authed():
+    from CTFd.auth import oidc
+    if not oidc.user_loggedin:
+        return False
     return bool(session.get("id", False))
 
 
 def is_admin():
     if authed():
-        user = get_current_user_attrs()
-        return user.type == "admin"
+        from CTFd.auth import oidc
+        groups = oidc.user_getfield('groups')
+        return groups and 'admin' in groups
     else:
         return False
 

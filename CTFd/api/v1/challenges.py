@@ -39,7 +39,7 @@ from CTFd.utils.dates import ctf_ended, ctf_paused, ctftime, isoformat, unix_tim
 from CTFd.utils.decorators import (
     admins_only,
     during_ctf_time_only,
-    require_verified_emails,
+    authed_only,
 )
 from CTFd.utils.decorators.visibility import (
     check_challenge_visibility,
@@ -141,7 +141,7 @@ def _build_solves_query(extra_filters=(), admin_view=False):
 class ChallengeList(Resource):
     @check_challenge_visibility
     @during_ctf_time_only
-    @require_verified_emails
+    @authed_only
     @challenges_namespace.doc(
         description="Endpoint to get Challenge objects in bulk",
         responses={
@@ -334,7 +334,7 @@ class ChallengeTypes(Resource):
 class Challenge(Resource):
     @check_challenge_visibility
     @during_ctf_time_only
-    @require_verified_emails
+    @authed_only
     @challenges_namespace.doc(
         description="Endpoint to get a specific Challenge object",
         responses={
@@ -536,7 +536,7 @@ class Challenge(Resource):
 class ChallengeAttempt(Resource):
     @check_challenge_visibility
     @during_ctf_time_only
-    @require_verified_emails
+    @authed_only
     def post(self):
         if authed() is False:
             return {"success": True, "data": {"status": "authentication_required"}}, 403
@@ -742,7 +742,6 @@ class ChallengeSolves(Resource):
     @check_challenge_visibility
     @check_score_visibility
     @during_ctf_time_only
-    @require_verified_emails
     def get(self, challenge_id):
         response = []
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()

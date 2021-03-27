@@ -270,6 +270,9 @@ def create_app(config="CTFd.config.Config"):
 
         update_check(force=True)
 
+        # Import auth before anything else to allow access to auth tokens in preprocessors
+        from CTFd.auth import auth
+
         init_request_processors(app)
         init_template_filters(app)
         init_template_globals(app)
@@ -280,7 +283,6 @@ def create_app(config="CTFd.config.Config"):
         from CTFd.users import users
         from CTFd.challenges import challenges
         from CTFd.scoreboard import scoreboard
-        from CTFd.auth import auth
         from CTFd.admin import admin
         from CTFd.api import api
         from CTFd.events import events

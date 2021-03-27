@@ -108,49 +108,12 @@ def setup():
             set_config("end", end)
             set_config("freeze", None)
 
-            # Administration
-            name = request.form["name"]
-            email = request.form["email"]
-            password = request.form["password"]
-
-            name_len = len(name) == 0
-            names = Users.query.add_columns("name", "id").filter_by(name=name).first()
-            emails = (
-                Users.query.add_columns("email", "id").filter_by(email=email).first()
-            )
-            pass_short = len(password) == 0
-            pass_long = len(password) > 128
-            valid_email = validators.validate_email(request.form["email"])
-            team_name_email_check = validators.validate_email(name)
-
-            if not valid_email:
-                errors.append("Please enter a valid email address")
-            if names:
-                errors.append("That user name is already taken")
-            if team_name_email_check is True:
-                errors.append("Your user name cannot be an email address")
-            if emails:
-                errors.append("That email has already been used")
-            if pass_short:
-                errors.append("Pick a longer password")
-            if pass_long:
-                errors.append("Pick a shorter password")
-            if name_len:
-                errors.append("Pick a longer user name")
-
             if len(errors) > 0:
                 return render_template(
                     "setup.html",
                     errors=errors,
-                    name=name,
-                    email=email,
-                    password=password,
                     state=serialize(generate_nonce()),
                 )
-
-            admin = Admins(
-                name=name, email=email, password=password, type="admin", hidden=True
-            )
 
             # Create an empty index page
             page = Pages(title=None, route="index", content="", draft=False)
@@ -238,18 +201,10 @@ def setup():
             set_config("setup", True)
 
             try:
-                db.session.add(admin)
-                db.session.commit()
-            except IntegrityError:
-                db.session.rollback()
-
-            try:
                 db.session.add(page)
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
-
-            login_user(admin)
 
             db.session.close()
             with app.app_context():

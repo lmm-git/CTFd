@@ -15,7 +15,6 @@ from CTFd.utils.decorators import (
     admins_only,
     authed_only,
     during_ctf_time_only,
-    require_verified_emails,
 )
 from CTFd.utils.helpers.models import build_model_filters
 from CTFd.utils.user import get_current_user
@@ -85,7 +84,6 @@ class UnlockList(Resource):
         return {"success": True, "data": response.data}
 
     @during_ctf_time_only
-    @require_verified_emails
     @authed_only
     @unlocks_namespace.doc(
         description="Endpoint to create an unlock object. Used to unlock hints.",

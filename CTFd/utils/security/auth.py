@@ -1,20 +1,19 @@
 import datetime
 import os
+from urllib.parse import quote
 
-from flask import session
+from flask import session, redirect, url_for
 
 from CTFd.cache import clear_user_session
 from CTFd.exceptions import UserNotFoundException, UserTokenExpiredException
 from CTFd.models import UserTokens, db
 from CTFd.utils.encoding import hexencode
 from CTFd.utils.security.csrf import generate_nonce
-from CTFd.utils.security.signing import hmac
 
 
 def login_user(user):
     session["id"] = user.id
     session["nonce"] = generate_nonce()
-    session["hash"] = hmac(user.password)
 
     # Clear out any currently cached user attributes
     clear_user_session(user_id=user.id)
@@ -22,14 +21,19 @@ def login_user(user):
 
 def update_user(user):
     session["id"] = user.id
-    session["hash"] = hmac(user.password)
 
     # Clear out any currently cached user attributes
     clear_user_session(user_id=user.id)
 
 
 def logout_user():
+    from CTFd.auth import oidc
     session.clear()
+    oidc.logout()
+    if 'end_session_endpoint' in oidc.client_secrets:
+        return redirect(f'{oidc.client_secrets["end_session_endpoint"]}'
+                        f'?redirect_uri={quote(url_for("views.static_html", _external=True))}')
+    return None
 
 
 def generate_user_token(user, expiration=None):
