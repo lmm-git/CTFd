@@ -24,11 +24,11 @@ def update_user(user):
 
 
 def logout_user():
-    from CTFd.auth import oidc
+    # Unset all user information
     session.clear()
-    oidc.logout()
-    if 'end_session_endpoint' in oidc.client_secrets:
-        return redirect(f'{oidc.client_secrets["end_session_endpoint"]}'
+    from CTFd.auth import auth_well_known
+    if 'end_session_endpoint' in auth_well_known:
+        return redirect(f'{auth_well_known["end_session_endpoint"]}'
                         f'?redirect_uri={quote(url_for("views.static_html", _external=True))}')
     return None
 

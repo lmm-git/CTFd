@@ -16,8 +16,7 @@ from CTFd.utils.security.signing import hmac
 
 def get_current_user():
     if authed():
-        from CTFd.auth import oidc
-        user = Users.query.filter_by(id=oidc.user_getfield('sub')).first()
+        user = Users.query.filter_by(id=session.get('sub')).first()
 
         # Check if the session is still valid
         session_hash = session.get("hash")
@@ -36,9 +35,8 @@ def get_current_user():
 
 
 def get_current_user_attrs():
-    from CTFd.auth import oidc
     if authed():
-        return get_user_attrs(user_id=oidc.user_getfield('sub'))
+        return get_user_attrs(user_id=session.get('sub'))
     else:
         return None
 
@@ -95,9 +93,8 @@ def get_current_team():
 
 
 def get_current_team_attrs():
-    from CTFd.auth import oidc
     if authed():
-        user = get_user_attrs(user_id=oidc.user_getfield('sub'))
+        user = get_user_attrs(user_id=session.get('sub'))
         if user and user.team_id:
             return get_team_attrs(team_id=user.team_id)
     return None
@@ -123,14 +120,15 @@ def get_current_user_type(fallback=None):
 
 
 def authed():
-    from CTFd.auth import oidc
-    return oidc.user_loggedin
+    if session.get('sub'):
+        return True
+    return False
+    return session.get('sub')
 
 
 def is_admin():
     if authed():
-        from CTFd.auth import oidc
-        groups = oidc.user_getfield('groups')
+        groups = session.get('groups')
         return groups and 'admin' in groups
     else:
         return False
@@ -162,9 +160,8 @@ def get_ip(req=None):
 
 
 def get_current_user_recent_ips():
-    from CTFd.auth import oidc
     if authed():
-        return get_user_recent_ips(user_id=oidc.user_getfield('sub'))
+        return get_user_recent_ips(user_id=session.get('sub'))
     else:
         return None
 

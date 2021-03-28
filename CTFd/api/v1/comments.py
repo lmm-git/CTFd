@@ -6,7 +6,6 @@ from flask_restx import Namespace, Resource
 from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
 from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessResponse
-from CTFd.auth import oidc
 from CTFd.constants import RawEnum
 from CTFd.models import (
     ChallengeComments,
@@ -129,7 +128,7 @@ class CommentList(Resource):
     def post(self):
         req = request.get_json()
         # Always force author IDs to be the actual user
-        req["author_id"] = oidc.user_getfield('sub')
+        req["author_id"] = session.get('sub')
         CommentModel = get_comment_model(data=req)
 
         m = CommentModel(**req)

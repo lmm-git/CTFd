@@ -193,7 +193,7 @@ def init_request_processors(app):
             if request.endpoint in (
                 "views.setup",
                 "auth.login",
-                "_oidc_callback",
+                "auth.authorize",
                 "views.health",
                 "views.themes",
                 "views.files",
@@ -204,7 +204,6 @@ def init_request_processors(app):
 
     @app.before_request
     def tracker():
-        from CTFd.auth import oidc
 
         if request.endpoint == "views.themes":
             return
@@ -217,13 +216,13 @@ def init_request_processors(app):
             track = None
             if (ip not in user_ips) or (request.method != "GET"):
                 track = Tracking.query.filter_by(
-                    ip=get_ip(), user_id=oidc.user_getfield('sub')
+                    ip=get_ip(), user_id=session.get('sub')
                 ).first()
 
                 if track:
                     track.date = datetime.datetime.utcnow()
                 else:
-                    track = Tracking(ip=get_ip(), user_id=oidc.user_getfield('sub'))
+                    track = Tracking(ip=get_ip(), user_id=session.get('sub'))
                     db.session.add(track)
 
             if track:
@@ -235,7 +234,7 @@ def init_request_processors(app):
                     logout_user()
                     raise exc
                 else:
-                    clear_user_recent_ips(user_id=oidc.user_getfield('sub'))
+                    clear_user_recent_ips(user_id=session.get('sub'))
 
     @app.before_request
     def banned():

@@ -118,7 +118,7 @@ class TokenDetail(Resource):
             token = Tokens.query.filter_by(id=token_id).first_or_404()
         else:
             token = Tokens.query.filter_by(
-                id=token_id, user_id=oidc.user_getfield('sub')
+                id=token_id, user_id=session.get('sub')
             ).first_or_404()
 
         user_type = get_current_user_type(fallback="user")

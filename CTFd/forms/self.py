@@ -2,7 +2,6 @@ from flask import session
 from wtforms import PasswordField, SelectField, StringField
 from wtforms.fields.html5 import DateField, URLField
 
-from CTFd.auth import oidc
 from CTFd.forms import BaseForm
 from CTFd.forms.fields import SubmitField
 from CTFd.forms.users import attach_custom_user_fields, build_custom_user_fields
@@ -26,7 +25,7 @@ def SettingsForm(*args, **kwargs):
                 self,
                 include_entries=True,
                 fields_kwargs={"editable": True},
-                field_entries_kwargs={"user_id": oidc.user_getfield('sub')},
+                field_entries_kwargs={"user_id": session.get('sub')},
             )
 
     attach_custom_user_fields(_SettingsForm, editable=True)

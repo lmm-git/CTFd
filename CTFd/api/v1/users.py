@@ -9,7 +9,6 @@ from CTFd.api.v1.schemas import (
     APIDetailedSuccessResponse,
     PaginatedAPIListSuccessResponse,
 )
-from CTFd.auth import oidc
 from CTFd.cache import clear_standings, clear_user_session
 from CTFd.constants import RawEnum
 from CTFd.models import (
@@ -219,7 +218,7 @@ class UserPublic(Resource):
         data["id"] = user_id
 
         # Admins should not be able to ban themselves
-        if data["id"] == oidc.user_getfield('sub') and (
+        if data["id"] == session.get('sub') and (
             data.get("banned") is True or data.get("banned") == "true"
         ):
             return (

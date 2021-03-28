@@ -1,10 +1,12 @@
-import json
 import logging
+import os
 from os import getenv
 
-from flask import Blueprint, abort
+import requests
+from flask import Blueprint, abort, session
 from flask import current_app as app
 from flask import redirect, request, url_for
+from requests_oauthlib import OAuth2Session
 
 from CTFd.constants.config import RegistrationVisibilityTypes, ConfigTypes
 from CTFd.models import Users, db
@@ -16,36 +18,49 @@ from CTFd.utils.decorators import ratelimit
 from CTFd.utils.logging import log
 from CTFd.utils.security.auth import login_user, logout_user
 
-from flask_oidc_ext import OpenIDConnect
-
 auth = Blueprint("auth", __name__)
 
 logging.basicConfig(level=logging.DEBUG)
-app.config.update({
-    'OIDC_CLIENT_SECRETS': 'client_secrets.json',
-    'OIDC_ID_TOKEN_COOKIE_SECURE': True,
-    'OIDC_REQUIRE_VERIFIED_EMAIL': True,
-    'OIDC_USER_INFO_ENABLED': True,
-    'OIDC_SCOPES': ['openid', 'email'],
-    'OVERWRITE_REDIRECT_URI': getenv('OVERWRITE_REDIRECT_URI', False),
-})
 
-client_secrets = getenv('OIDC_CLIENT_SECRETS')
-if client_secrets:
-    app.config.update({
-        'OIDC_CLIENT_SECRETS': json.loads(client_secrets)
-    })
+client_id = getenv('OAUTH_CLIENT_ID', None)
+client_secret = getenv('OAUTH_CLIENT_SECRET', None)
+auth_base_uri = getenv('OAUTH_CLIENT_BASE_URI', None)
 
-oidc = OpenIDConnect(app)
+auth_well_known = requests.get(f'{auth_base_uri}/.well-known/openid-configuration').json()
+
+# Enable insecure transport for development
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = getenv('FLASK_DEBUG', '0')
 
 
 @auth.route("/login", methods=["GET"])
-@oidc.require_login
-@ratelimit(method="POST", limit=10, interval=5)
+@ratelimit(method="GET", limit=10, interval=5)
 def login():
-    sub = oidc.user_getfield('sub')
-    name = oidc.user_getfield('preferred_username')
-    email_address = oidc.user_getfield('email')
+    oauth = OAuth2Session(client_id, redirect_uri=url_for('auth.authorize', _external=True),
+                          scope=['openid', 'email'])
+
+    authorization_url, state = oauth.authorization_url(auth_well_known['authorization_endpoint'])
+
+    session['oauth_state'] = state
+    return redirect(authorization_url)
+
+
+@auth.route("/login/authorize", methods=["GET"])
+@ratelimit(method="GET", limit=10, interval=5)
+def authorize():
+    oauth = OAuth2Session(client_id, state=session['oauth_state'],
+                          redirect_uri=url_for('auth.authorize', _external=True))
+    token = oauth.fetch_token(auth_well_known['token_endpoint'], client_secret=client_secret,
+                              authorization_response=request.url)
+
+    session['oauth_token'] = token
+    user_data_req = oauth.get(auth_well_known['userinfo_endpoint'])
+    if user_data_req.status_code != 200:
+        return abort(403), "Userinfo did not return 200"
+    user_data = user_data_req.json()
+
+    sub = user_data['sub']
+    name = user_data['preferred_username']
+    email_address = user_data['email']
 
     # Check whether user exists
     user = Users.query.filter_by(id=sub).first()
@@ -53,7 +68,6 @@ def login():
         user.email = email_address
         login_user(user)
         db.session.commit()
-        return redirect(url_for("challenges.listing"))
     else:
         # Check whether new registrations are allowed
         v = get_config(ConfigTypes.REGISTRATION_VISIBILITY)
@@ -83,6 +97,9 @@ def login():
                 email=user.email,
             )
             db.session.close()
+
+    session['sub'] = user_data['sub']
+    session['groups'] = user_data['groups']
 
     if request.args.get("next") and validators.is_safe_url(
             request.args.get("next")
