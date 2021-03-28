@@ -1,15 +1,18 @@
+import json
 import logging
+from os import getenv
 
-from flask import Blueprint
+from flask import Blueprint, abort
 from flask import current_app as app
 from flask import redirect, request, url_for
 
+from CTFd.constants.config import RegistrationVisibilityTypes, ConfigTypes
 from CTFd.models import Users, db
-from CTFd.utils import config, email
+from CTFd.utils import config, email, get_config
 from CTFd.utils import user as current_user
 from CTFd.utils import validators
+from CTFd.utils.config import is_setup
 from CTFd.utils.decorators import ratelimit
-from CTFd.utils.decorators.visibility import check_registration_visibility
 from CTFd.utils.logging import log
 from CTFd.utils.security.auth import login_user, logout_user
 
@@ -24,13 +27,19 @@ app.config.update({
     'OIDC_REQUIRE_VERIFIED_EMAIL': True,
     'OIDC_USER_INFO_ENABLED': True,
     'OIDC_SCOPES': ['openid', 'email'],
+    'OVERWRITE_REDIRECT_URI': getenv('OVERWRITE_REDIRECT_URI', False),
 })
+
+client_secrets = getenv('OIDC_CLIENT_SECRETS')
+if client_secrets:
+    app.config.update({
+        'OIDC_CLIENT_SECRETS': json.loads(client_secrets)
+    })
 
 oidc = OpenIDConnect(app)
 
 
 @auth.route("/login", methods=["GET"])
-@check_registration_visibility
 @oidc.require_login
 @ratelimit(method="POST", limit=10, interval=5)
 def login():
@@ -46,6 +55,13 @@ def login():
         db.session.commit()
         return redirect(url_for("challenges.listing"))
     else:
+        # Check whether new registrations are allowed
+        v = get_config(ConfigTypes.REGISTRATION_VISIBILITY)
+        # Allow signups during setup
+        if (v == RegistrationVisibilityTypes.PRIVATE or v != RegistrationVisibilityTypes.PUBLIC) and is_setup():
+            logout_user()
+            return abort(403)
+
         with app.app_context():
             user = Users(id=sub, name=name, email=email_address)
 

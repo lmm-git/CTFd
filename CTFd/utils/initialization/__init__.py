@@ -192,7 +192,9 @@ def init_request_processors(app):
         if is_setup() is False:
             if request.endpoint in (
                 "views.setup",
-                "views.integrations",
+                "auth.login",
+                "_oidc_callback",
+                "views.health",
                 "views.themes",
                 "views.files",
             ):

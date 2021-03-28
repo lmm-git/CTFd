@@ -26,12 +26,10 @@ from CTFd.models import (
 )
 from CTFd.utils import config, get_config, set_config
 from CTFd.utils import user as current_user
-from CTFd.utils import validators
-from CTFd.utils.config import is_setup
 from CTFd.utils.config.pages import build_html, get_page
 from CTFd.utils.config.visibility import challenges_visible
 from CTFd.utils.dates import ctf_ended, ctftime, view_after_ctf
-from CTFd.utils.decorators import authed_only
+from CTFd.utils.decorators import authed_only, admins_only
 from CTFd.utils.email import (
     DEFAULT_PASSWORD_RESET_BODY,
     DEFAULT_PASSWORD_RESET_SUBJECT,
@@ -44,7 +42,6 @@ from CTFd.utils.email import (
 )
 from CTFd.utils.helpers import get_errors, get_infos, markup
 from CTFd.utils.modes import USERS_MODE
-from CTFd.utils.security.auth import login_user
 from CTFd.utils.security.csrf import generate_nonce
 from CTFd.utils.security.signing import (
     BadSignature,
@@ -59,7 +56,14 @@ from CTFd.utils.user import authed, get_current_user, is_admin
 views = Blueprint("views", __name__)
 
 
+# Allow k8s to check the health of the container
+@views.route("/health", methods=["GET"])
+def health():
+    return '{"status": "ok", "message": "Welcome to the CTF 👋"}'
+
+
 @views.route("/setup", methods=["GET", "POST"])
+@admins_only
 def setup():
     errors = get_errors()
     if not config.is_setup():
@@ -212,34 +216,6 @@ def setup():
             return redirect(url_for("views.static_html"))
         return render_template("setup.html", state=serialize(generate_nonce()))
     return redirect(url_for("views.static_html"))
-
-
-@views.route("/setup/integrations", methods=["GET", "POST"])
-def integrations():
-    if is_admin() or is_setup() is False:
-        name = request.values.get("name")
-        state = request.values.get("state")
-
-        try:
-            state = unserialize(state, max_age=3600)
-        except (BadSignature, BadTimeSignature):
-            state = False
-        except Exception:
-            state = False
-
-        if state:
-            if name == "mlc":
-                mlc_client_id = request.values.get("mlc_client_id")
-                mlc_client_secret = request.values.get("mlc_client_secret")
-                set_config("oauth_client_id", mlc_client_id)
-                set_config("oauth_client_secret", mlc_client_secret)
-                return render_template("admin/integrations.html")
-            else:
-                abort(404)
-        else:
-            abort(403)
-    else:
-        abort(403)
 
 
 @views.route("/notifications", methods=["GET"])
