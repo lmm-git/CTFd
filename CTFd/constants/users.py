@@ -4,7 +4,6 @@ UserAttrs = namedtuple(
     "UserAttrs",
     [
         "id",
-        "oauth_id",
         "name",
         "email",
         "type",

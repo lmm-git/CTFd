@@ -4,7 +4,6 @@ TeamAttrs = namedtuple(
     "TeamAttrs",
     [
         "id",
-        "oauth_id",
         "name",
         "email",
         "secret",

@@ -66,7 +66,7 @@ def private():
     )
 
 
-@users.route("/users/<int:user_id>")
+@users.route("/users/<string:user_id>")
 @check_account_visibility
 @check_score_visibility
 def public(user_id):

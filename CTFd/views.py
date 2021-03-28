@@ -16,7 +16,6 @@ from CTFd.constants.config import (
 )
 from CTFd.constants.themes import DEFAULT_THEME
 from CTFd.models import (
-    Admins,
     Files,
     Notifications,
     Pages,

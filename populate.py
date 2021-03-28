@@ -160,7 +160,6 @@ if __name__ == "__main__":
         # Generating Teams
         print("GENERATING TEAMS")
         used = []
-        used_oauth_ids = []
         count = 0
         while count < TEAM_AMOUNT:
             name = gen_team_name()
@@ -169,12 +168,6 @@ if __name__ == "__main__":
                 team = Teams(name=name, password="password")
                 if random_chance():
                     team.affiliation = gen_affiliation()
-                if random_chance():
-                    oauth_id = random.randint(1, 1000)
-                    while oauth_id in used_oauth_ids:
-                        oauth_id = random.randint(1, 1000)
-                    used_oauth_ids.append(oauth_id)
-                    team.oauth_id = oauth_id
                 db.session.add(team)
                 count += 1
 
@@ -183,7 +176,6 @@ if __name__ == "__main__":
         # Generating Users
         print("GENERATING USERS")
         used = []
-        used_oauth_ids = []
         count = 0
         while count < USER_AMOUNT:
             name = gen_name()
@@ -194,12 +186,6 @@ if __name__ == "__main__":
                     user.verified = True
                     if random_chance():
                         user.affiliation = gen_affiliation()
-                    if random_chance():
-                        oauth_id = random.randint(1, 1000)
-                        while oauth_id in used_oauth_ids:
-                            oauth_id = random.randint(1, 1000)
-                        used_oauth_ids.append(oauth_id)
-                        user.oauth_id = oauth_id
                     if mode == "teams":
                         user.team_id = random.randint(1, TEAM_AMOUNT)
                     db.session.add(user)

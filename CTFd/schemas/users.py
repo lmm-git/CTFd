@@ -16,7 +16,7 @@ class UserSchema(ma.ModelSchema):
     class Meta:
         model = Users
         include_fk = True
-        dump_only = ("id", "oauth_id", "created", "name")
+        dump_only = ("id", "created", "name")
         load_only = ("password",)
 
     name = field_for(
@@ -314,7 +314,6 @@ class UserSchema(ma.ModelSchema):
             "affiliation",
             "bracket",
             "id",
-            "oauth_id",
             "fields",
             "team_id",
         ],
@@ -326,7 +325,6 @@ class UserSchema(ma.ModelSchema):
             "affiliation",
             "bracket",
             "id",
-            "oauth_id",
             "password",
             "fields",
             "team_id",
@@ -343,7 +341,6 @@ class UserSchema(ma.ModelSchema):
             "bracket",
             "hidden",
             "id",
-            "oauth_id",
             "password",
             "type",
             "verified",

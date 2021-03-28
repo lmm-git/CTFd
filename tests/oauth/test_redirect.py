@@ -56,13 +56,11 @@ def test_oauth_configured_flow():
         # Users should be able to register now
         assert Users.query.count() == 2
         user = Users.query.filter_by(email="user@examplectf.com").first()
-        assert user.oauth_id == 1337
         assert user.team_id == 1
 
         # Teams should be created
         assert Teams.query.count() == 1
         team = Teams.query.filter_by(id=1).first()
-        assert team.oauth_id == 1234
 
         client.get("/logout")
 
@@ -98,7 +96,6 @@ def test_oauth_login_upgrade():
         client.get("/logout")
 
         user = Users.query.filter_by(id=2).first()
-        assert user.oauth_id is None
         assert user.team_id is None
 
         login_with_mlc(app)
@@ -107,7 +104,6 @@ def test_oauth_login_upgrade():
 
         # Logging in with MLC should insert an OAuth ID and team ID
         user = Users.query.filter_by(id=2).first()
-        assert user.oauth_id
         assert user.verified
         assert user.team_id
     destroy_ctfd(app)

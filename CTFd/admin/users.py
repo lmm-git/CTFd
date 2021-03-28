@@ -55,7 +55,7 @@ def users_new():
     return render_template("admin/users/new.html")
 
 
-@admin.route("/admin/users/<int:user_id>")
+@admin.route("/admin/users/<string:user_id>")
 @admins_only
 def users_detail(user_id):
     # Get user object

@@ -19,14 +19,14 @@ def test_team_size_limit():
     )
     with app.app_context():
         set_config("team_size", 1)
-        team = gen_team(app.db, member_count=1, oauth_id=1234)
+        team = gen_team(app.db, member_count=1)
         team_id = team.id
         login_with_mlc(
-            app, team_name="team_name", team_oauth_id=1234, raise_for_error=False
+            app, team_name="team_name", raise_for_error=False
         )
         assert len(Teams.query.filter_by(id=team_id).first().members) == 1
 
         set_config("team_size", 2)
-        login_with_mlc(app, team_name="team_name", team_oauth_id=1234)
+        login_with_mlc(app, team_name="team_name")
         assert len(Teams.query.filter_by(id=team_id).first().members) == 2
     destroy_ctfd(app)

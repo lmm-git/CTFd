@@ -12,7 +12,6 @@ from CTFd.utils.security.csrf import generate_nonce
 
 
 def login_user(user):
-    session["id"] = user.id
     session["nonce"] = generate_nonce()
 
     # Clear out any currently cached user attributes
@@ -20,8 +19,6 @@ def login_user(user):
 
 
 def update_user(user):
-    session["id"] = user.id
-
     # Clear out any currently cached user attributes
     clear_user_session(user_id=user.id)
 

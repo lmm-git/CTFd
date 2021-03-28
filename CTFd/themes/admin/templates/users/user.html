@@ -118,11 +118,6 @@
 			{% endif %}
 
 		<h2 id="team-email" class="text-center">{{ user.email }}</h2>
-		{% if user.oauth_id %}
-			<a href="https://majorleaguecyber.org/u/{{ user.name }}">
-				<h3><span class="badge badge-primary">Official</span></h3>
-			</a>
-		{% endif %}
 
 		{% if user.team_id %}
 			<h2 id="team-acc" class="text-center">
@@ -434,7 +429,7 @@
 
 {% block scripts %}
 <script>
-var USER_ID = {{ user.id }};
+var USER_ID = {{ user.id | tojson }};
 var USER_NAME = {{ user.name | tojson }};
 var TEAM_ID = {{ user.team_id | tojson }};
 var stats_data = {{ {

@@ -29,26 +29,25 @@ app.config.update({
 oidc = OpenIDConnect(app)
 
 
-@auth.route("/login", methods=["POST", "GET"])
+@auth.route("/login", methods=["GET"])
 @check_registration_visibility
 @oidc.require_login
 @ratelimit(method="POST", limit=10, interval=5)
 def login():
-    if current_user.authed():
-        return redirect(url_for("challenges.listing"))
-
+    sub = oidc.user_getfield('sub')
     name = oidc.user_getfield('preferred_username')
     email_address = oidc.user_getfield('email')
 
     # Check whether user exists
-    user = Users.query.filter_by(name=name).first()
+    user = Users.query.filter_by(id=sub).first()
     if user:
         user.email = email_address
         login_user(user)
         db.session.commit()
+        return redirect(url_for("challenges.listing"))
     else:
         with app.app_context():
-            user = Users(name=name, email=email_address)
+            user = Users(id=sub, name=name, email=email_address)
 
             db.session.add(user)
             db.session.commit()

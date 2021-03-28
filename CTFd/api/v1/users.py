@@ -9,6 +9,7 @@ from CTFd.api.v1.schemas import (
     APIDetailedSuccessResponse,
     PaginatedAPIListSuccessResponse,
 )
+from CTFd.auth import oidc
 from CTFd.cache import clear_standings, clear_user_session
 from CTFd.constants import RawEnum
 from CTFd.models import (
@@ -160,9 +161,8 @@ class UserList(Resource):
         if request.args.get("notify"):
             name = response.data.name
             email = response.data.email
-            password = req.get("password")
 
-            user_created_notification(addr=email, name=name, password=password)
+            user_created_notification(addr=email, name=name)
 
         clear_standings()
 
@@ -171,7 +171,7 @@ class UserList(Resource):
         return {"success": True, "data": response.data}
 
 
-@users_namespace.route("/<int:user_id>")
+@users_namespace.route("/<string:user_id>")
 @users_namespace.param("user_id", "User ID")
 class UserPublic(Resource):
     @check_account_visibility
@@ -219,7 +219,7 @@ class UserPublic(Resource):
         data["id"] = user_id
 
         # Admins should not be able to ban themselves
-        if data["id"] == session["id"] and (
+        if data["id"] == oidc.user_getfield('sub') and (
             data.get("banned") is True or data.get("banned") == "true"
         ):
             return (
@@ -251,13 +251,6 @@ class UserPublic(Resource):
         responses={200: ("Success", "APISimpleSuccessResponse")},
     )
     def delete(self, user_id):
-        # Admins should not be able to delete themselves
-        if user_id == session["id"]:
-            return (
-                {"success": False, "errors": {"id": "You cannot delete yourself"}},
-                400,
-            )
-
         Notifications.query.filter_by(user_id=user_id).delete()
         Awards.query.filter_by(user_id=user_id).delete()
         Unlocks.query.filter_by(user_id=user_id).delete()
@@ -449,7 +442,7 @@ class UserPublicAwards(Resource):
         return {"success": True, "data": response.data}
 
 
-@users_namespace.route("/<int:user_id>/email")
+@users_namespace.route("/<string:user_id>/email")
 @users_namespace.param("user_id", "User ID")
 class UserEmails(Resource):
     @admins_only

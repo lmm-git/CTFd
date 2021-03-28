@@ -83,7 +83,6 @@ def get_standings(count=None, admin=False, fields=None):
         standings_query = (
             db.session.query(
                 Model.id.label("account_id"),
-                Model.oauth_id.label("oauth_id"),
                 Model.name.label("name"),
                 Model.hidden,
                 Model.banned,
@@ -97,7 +96,6 @@ def get_standings(count=None, admin=False, fields=None):
         standings_query = (
             db.session.query(
                 Model.id.label("account_id"),
-                Model.oauth_id.label("oauth_id"),
                 Model.name.label("name"),
                 sumscores.columns.score,
                 *fields,
@@ -167,7 +165,6 @@ def get_team_standings(count=None, admin=False, fields=None):
         standings_query = (
             db.session.query(
                 Teams.id.label("team_id"),
-                Teams.oauth_id.label("oauth_id"),
                 Teams.name.label("name"),
                 Teams.hidden,
                 Teams.banned,
@@ -181,7 +178,6 @@ def get_team_standings(count=None, admin=False, fields=None):
         standings_query = (
             db.session.query(
                 Teams.id.label("team_id"),
-                Teams.oauth_id.label("oauth_id"),
                 Teams.name.label("name"),
                 sumscores.columns.score,
                 *fields,
@@ -249,7 +245,6 @@ def get_user_standings(count=None, admin=False, fields=None):
         standings_query = (
             db.session.query(
                 Users.id.label("user_id"),
-                Users.oauth_id.label("oauth_id"),
                 Users.name.label("name"),
                 Users.team_id.label("team_id"),
                 Users.hidden,
@@ -264,7 +259,6 @@ def get_user_standings(count=None, admin=False, fields=None):
         standings_query = (
             db.session.query(
                 Users.id.label("user_id"),
-                Users.oauth_id.label("oauth_id"),
                 Users.name.label("name"),
                 Users.team_id.label("team_id"),
                 sumscores.columns.score,

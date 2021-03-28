@@ -190,9 +190,7 @@ def login_with_mlc(
     name="user",
     scope="profile%20team",
     email="user@examplectf.com",
-    oauth_id=1337,
     team_name="TestTeam",
-    team_oauth_id=1234,
     raise_for_error=True,
 ):
     with app.test_client() as client, patch.object(
@@ -221,10 +219,9 @@ def login_with_mlc(
         fake_get_request.return_value = fake_get_response
         fake_get_response.status_code = 200
         fake_get_response.json = lambda: {
-            "id": oauth_id,
             "name": name,
             "email": email,
-            "team": {"id": team_oauth_id, "name": team_name},
+            "team": {"name": team_name},
         }
 
         client.get(

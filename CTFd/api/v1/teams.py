@@ -10,6 +10,7 @@ from CTFd.api.v1.schemas import (
     APIDetailedSuccessResponse,
     PaginatedAPIListSuccessResponse,
 )
+from CTFd.auth import oidc
 from CTFd.cache import clear_standings, clear_team_session, clear_user_session
 from CTFd.constants import RawEnum
 from CTFd.models import Awards, Submissions, Teams, Unlocks, Users, db
@@ -284,7 +285,7 @@ class TeamPrivate(Resource):
     )
     def patch(self):
         team = get_current_team()
-        if team.captain_id != session["id"]:
+        if team.captain_id != oidc.user_getfield('sub'):
             return (
                 {
                     "success": False,
@@ -325,7 +326,7 @@ class TeamPrivate(Resource):
             )
 
         team = get_current_team()
-        if team.captain_id != session["id"]:
+        if team.captain_id != oidc.user_getfield('sub'):
             return (
                 {
                     "success": False,
@@ -380,7 +381,7 @@ class TeamPrivateMembers(Resource):
     @require_team
     def post(self):
         team = get_current_team()
-        if team.captain_id != session["id"]:
+        if team.captain_id != oidc.user_getfield('sub'):
             return (
                 {
                     "success": False,

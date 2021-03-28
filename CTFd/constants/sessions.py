@@ -1,10 +1,14 @@
 from flask import session
 
+from CTFd.auth import oidc
+
 
 class _SessionWrapper:
     @property
     def id(self):
-        return session.get("id", 0)
+        if not oidc.user_loggedin:
+            return None
+        return oidc.user_getfield('sub')
 
     @property
     def nonce(self):

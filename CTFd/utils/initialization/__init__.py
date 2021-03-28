@@ -202,34 +202,38 @@ def init_request_processors(app):
 
     @app.before_request
     def tracker():
+        from CTFd.auth import oidc
+
         if request.endpoint == "views.themes":
             return
 
-        if authed():
+        # Do not track login events as we might not have the user in our DB causing a foreign key violation
+        if authed() and request.endpoint != 'auth.login':
             user_ips = get_current_user_recent_ips()
             ip = get_ip()
 
             track = None
             if (ip not in user_ips) or (request.method != "GET"):
                 track = Tracking.query.filter_by(
-                    ip=get_ip(), user_id=session["id"]
+                    ip=get_ip(), user_id=oidc.user_getfield('sub')
                 ).first()
 
                 if track:
                     track.date = datetime.datetime.utcnow()
                 else:
-                    track = Tracking(ip=get_ip(), user_id=session["id"])
+                    track = Tracking(ip=get_ip(), user_id=oidc.user_getfield('sub'))
                     db.session.add(track)
 
             if track:
                 try:
                     db.session.commit()
-                except (InvalidRequestError, IntegrityError):
+                except (InvalidRequestError, IntegrityError) as exc:
                     db.session.rollback()
                     db.session.close()
                     logout_user()
+                    raise exc
                 else:
-                    clear_user_recent_ips(user_id=session["id"])
+                    clear_user_recent_ips(user_id=oidc.user_getfield('sub'))
 
     @app.before_request
     def banned():
