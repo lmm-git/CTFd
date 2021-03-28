@@ -4,7 +4,7 @@
       <div class="col-md-12">
         <div class="kubernetes-deployment-setting">
           <codemirror 
-            v-model="kubeneretesDeploymentCode" 
+            v-model="kubeneretesDescriptionCode" 
             :options="cmOptions" />
         </div>
       </div>
@@ -20,7 +20,6 @@
 import CTFd from "core/CTFd";
 
 import { codemirror } from 'vue-codemirror'
-import 'codemirror/mode/javascript/javascript.js'
 import 'codemirror/mode/yaml/yaml.js'
 import 'codemirror/lib/codemirror.css'
 import 'codemirror/theme/base16-dark.css'
@@ -35,15 +34,14 @@ export default {
     codemirror,
   },
   data: () => ({
-    kubeneretesDeploymentCode: null,
+    kubeneretesDescriptionCode: null,
     cmOptions: {
       tabSize: 2,
       mode: 'text/x-yaml',
       theme: 'base16-dark',
       lineNumbers: true,
       line: true,
-      refresh: true,
-      autofocus: false,
+      autofocus: true,
       autoRefresh: true,
     }
   }),
@@ -62,15 +60,15 @@ export default {
         })
         .then(response => {
           if (response.success) {
-            this.kubeneretesDeploymentCode = response.data.kubernetes_deployment ?? "";
+            this.kubeneretesDescriptionCode = response.data.kubernetes_description ?? "";
           }
         });
     },
     submitDeployment: function() {
-      let kubernetes_deployment = this.kubeneretesDeploymentCode.trim();
-      if (kubernetes_deployment.length > 0) {
+      const kubernetes_description = this.kubeneretesDescriptionCode.trim();
+      if (kubernetes_description.length > 0) {
         const body = {
-          kubernetes_deployment,
+          kubernetes_description,
         };
         CTFd.fetch(`/api/v1/challenges/${this.challenge_id}`, {
           method: "PATCH",

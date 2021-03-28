@@ -20,10 +20,13 @@ metadata:
   name: ctf-operator
 rules:
 - apiGroups: [""]
-  resources: ["services", "namespaces"]
+  resources: ["services", "namespaces", "serviceaccounts", "secrets"]
   verbs: ["list", "get", "watch", "create", "update", "patch", "delete"]
 - apiGroups: ["apps"]
   resources: ["deployments"]
+  verbs: ["list", "get", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles", "rolebindings"]
   verbs: ["list", "get", "watch", "create", "update", "patch", "delete"]
 - apiGroups: ["networking.k8s.io"]
   resources: ["ingresses", "networkpolicies"]

@@ -58,7 +58,8 @@ from CTFd.utils.user import (
     get_current_user_attrs,
     is_admin,
 )
-from CTFd.utils.kubernetes import is_challenge_running
+from CTFd.utils.kubernetes import challenge_running_state, start_challenge, stop_challenge
+from CTFd.plugins import bypass_csrf_protection
 
 challenges_namespace = Namespace(
     "challenges", description="Endpoint to retrieve Challenges"
@@ -466,9 +467,9 @@ class Challenge(Resource):
             attempts = 0
 
         if is_admin():
-            response["kubernetes_deployment"] = chal.kubernetes_deployment
+            response["kubernetes_description"] = chal.kubernetes_description
 
-        response["running"] = is_challenge_running(user.account_id, challenge.id)
+        response["running"] = challenge_running_state(user.account_id, chal.id)
 
         response["solves"] = solve_count
         response["solved_by_me"] = solved_by_user
@@ -532,27 +533,49 @@ class Challenge(Resource):
 @challenges_namespace.route("/<challenge_id>/k8s")
 class ChallengeK8S(Resource):
     @authed_only
-    @require_verified_emails
     @during_ctf_time_only
     def get(self, challenge_id):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         user = get_current_user()
         data = dict()
-        data["running"] = is_challenge_running(user.id, challenge.id)
+        data["running"] = challenge_running_state(user.id, challenge.id)
         return {"success": True, "data": data}
 
     @authed_only
-    @require_verified_emails
     @during_ctf_time_only
     def post(self, challenge_id):
-        return {"success": True, "data": "cat"}
+        """ Start the challenge """
+        user = get_current_user()
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        if not challenge.kubernetes_description or not challenge.kubernetes_description.strip():
+            return {"success": False, "data": {
+                "message": "The challenge cannot be deployed"
+            }}, 500
+        try:
+            start_challenge(user.id, challenge)
+            return {"success": True, "data": {
+                "running": "starting"
+            }}
+        except Exception as e:
+            return {"success": False, "data": {
+                "message": str(e)
+            }}, 500
 
     @authed_only
-    @require_verified_emails
     @during_ctf_time_only
     def delete(self, challenge_id):
         """ Stop the challenge """
-        return {"success": True, "data": "cat"}
+        user = get_current_user()
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        try:
+            stop_challenge(user.id, challenge.id)
+            return {"success": True, "data": {
+                "message": "Challenge stopping."
+            }}
+        except Exception as e:
+            return {"success": False, "data": {
+                "message": str(e)
+            }}, 500
 
 @challenges_namespace.route("/attempt")
 class ChallengeAttempt(Resource):

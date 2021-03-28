@@ -71,15 +71,15 @@ class ChallengeSchema(ma.ModelSchema):
         Challenges, "requirements", validate=[ChallengeRequirementsValidator()],
     )
 
-    kubernetes_deployment = field_for(
+    kubernetes_description = field_for(
         Challenges,
-        "kubernetes_deployment",
+        "kubernetes_description",
         allow_none=True,
         validate=[
             validate.Length(
                 min=0,
                 max=65535,
-                error="Challenge could not be saved. Challenge kubernetes deployment too long",
+                error="Challenge could not be saved. Challenge kubernetes description too long",
             )
         ],
     )
