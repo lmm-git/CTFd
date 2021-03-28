@@ -203,6 +203,16 @@ class ServerConfig(object):
     # === OAUTH ===
     OAUTH_CLIENT_ID: str = empty_str_cast(config_ini["oauth"]["OAUTH_CLIENT_ID"])
     OAUTH_CLIENT_SECRET: str = empty_str_cast(config_ini["oauth"]["OAUTH_CLIENT_SECRET"])
+
+    # === KUBERNETES ===
+    KUBERNETES_ENABLED: bool = process_boolean_str(empty_str_cast(config_ini["k8s"]["KUBERNETES_ENABLED"], default=False))
+
+    KUBERNETES_HOST: str = empty_str_cast(config_ini["k8s"]["KUBERNETES_HOST"], default="")
+
+    KUBERNETES_BEARER_TOKEN: str = empty_str_cast(config_ini["k8s"]["KUBERNETES_BEARER_TOKEN"], default="")
+
+    KUBERNETES_SSL_CA_CERT: str = empty_str_cast(config_ini["k8s"]["KUBERNETES_SSL_CA_CERT"], default="")
+
 # fmt: on
 
 

@@ -3,20 +3,23 @@ import re
 import os
 import yaml
 
-from CTFd import utils
+from CTFd.utils import get_app_config
 from kubernetes import client
 from kubernetes.client.rest import ApiException
 from kubernetes.utils import FailToCreateError
 from kubernetes.utils.create_from_yaml import create_from_dict
 
+def k8s_enabled() -> bool:
+    return get_app_config("KUBERNETES_ENABLED")
+
 def create_k8s_client(token=None) -> client.ApiClient:
     configuration = client.Configuration()
-    configuration.host = utils.get_app_config('KUBERNETES_HOST')
+    configuration.host = get_app_config('KUBERNETES_HOST')
 
-    configuration.api_key['authorization'] = token or utils.get_app_config('KUBERNETES_BEARER_TOKEN')
+    configuration.api_key['authorization'] = token or get_app_config('KUBERNETES_BEARER_TOKEN')
     configuration.api_key_prefix['authorization'] = 'Bearer'
 
-    ssl_ca_cert_path = utils.get_app_config('KUBERNETES_SSL_CA_CERT')
+    ssl_ca_cert_path = get_app_config('KUBERNETES_SSL_CA_CERT')
     if not ssl_ca_cert_path:
         raise Exception("No certificate file given.")
     if not os.path.isabs(ssl_ca_cert_path):
@@ -27,15 +30,14 @@ def create_k8s_client(token=None) -> client.ApiClient:
 
     return client.ApiClient(configuration)
 
-k8s_client = create_k8s_client()
-core_k8s_client = client.CoreV1Api(k8s_client)
-rbac_k8s_client = client.RbacAuthorizationV1Api(k8s_client)
-
 def get_namespace(user_id, challenge_id) -> str:
     fixed_user_id = re.sub(r'[^A-Za-z0-9]+', '', str(user_id))
     return 'ctfd-challenges-{}-{}'.format(fixed_user_id, str(challenge_id))
 
 def challenge_k8s_state(user_id, challenge_id) -> str:
+    k8s_client = create_k8s_client()
+    core_k8s_client = client.CoreV1Api(k8s_client)
+
     namespace = get_namespace(user_id, challenge_id)
     existing_namespaces = core_k8s_client.list_namespace()
     for ns in existing_namespaces.items:
@@ -48,7 +50,10 @@ def challenge_k8s_state(user_id, challenge_id) -> str:
                 return "unknown"
     return "stopped"
 
-def create_service_account_token(namespace) -> str:
+def create_service_account_token(k8s_client, namespace) -> str:
+    core_k8s_client = client.CoreV1Api(k8s_client)
+    rbac_k8s_client = client.RbacAuthorizationV1Api(k8s_client)
+
     # Create a new Service account
     service_account_body = {"metadata": {"name": "manager"} }
     core_k8s_client.create_namespaced_service_account(namespace, service_account_body)
@@ -116,6 +121,9 @@ def create_service_account_token(namespace) -> str:
 
 def start_challenge(user_id, challenge):
     """ Starts a challenge by creating a new namespace for the challenge - user combination """
+    k8s_client = create_k8s_client()
+    core_k8s_client = client.CoreV1Api(k8s_client)
+
     # Create the namespace.
     try:
         namespace = get_namespace(user_id, challenge.id)
@@ -133,7 +141,7 @@ def start_challenge(user_id, challenge):
     # Create a new service account and use that token
     # for deploying the new namespace.
     try:
-        token = create_service_account_token(namespace)
+        token = create_service_account_token(k8s_client, namespace)
         k8s_manager_client = create_k8s_client(token)
     except ApiException:
         stop_challenge(user_id, challenge.id)
@@ -164,6 +172,9 @@ def start_challenge(user_id, challenge):
 
 
 def stop_challenge(user_id, challenge_id):
+    k8s_client = create_k8s_client()
+    core_k8s_client = client.CoreV1Api(k8s_client)
+
     # Deleting the namespace should be enough.
     namespace = get_namespace(user_id, challenge_id)
     try:

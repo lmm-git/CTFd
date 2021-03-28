@@ -47,7 +47,9 @@
 					<a class="nav-item nav-link" data-toggle="tab" href="#tags" role="tab">Tags</a>
 					<a class="nav-item nav-link" data-toggle="tab" href="#hints" role="tab">Hints</a>
 					<a class="nav-item nav-link" data-toggle="tab" href="#requirements" role="tab">Requirements</a>
+					{% if kubernetes_enabled %}
 					<a class="nav-item nav-link" data-toggle="tab" href="#kubernetes" role="tab">Kubernetes</a>
+					{% endif %}
 				</nav>
 
 				<div class="tab-content" id="nav-tabContent">
@@ -102,6 +104,7 @@
 							</div>
 						</div>
 					</div>
+					{% if kubernetes_enabled %}
 					<div class="tab-pane fade" id="kubernetes" role="tabpanel">
 						<div class="row">
 							<div class="col-md-12">
@@ -110,6 +113,7 @@
 							</div>
 						</div>
 					</div>
+					{% endif %}
 				</div>
 
 			</div>

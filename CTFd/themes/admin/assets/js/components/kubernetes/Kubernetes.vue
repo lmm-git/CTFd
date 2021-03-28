@@ -3,8 +3,13 @@
     <div class="row mb-3">
       <div class="col-md-12">
         <div class="kubernetes-deployment-setting">
-          <codemirror 
-            v-model="kubeneretesDescriptionCode" 
+          <div>
+            <input type="checkbox" id="kubernetesEnabledCheckbox" v-model="kubernetesEnabled" />
+            <label for="kubernetesEnabledCheckbox">Enable Kubernetes Deployment?</label>
+          </div>
+          <codemirror
+            v-model="kubeneretesDescriptionCode"
+            v-if="kubernetesEnabled"
             :options="cmOptions" />
         </div>
       </div>
@@ -26,6 +31,8 @@ import 'codemirror/theme/base16-dark.css'
 // Needed because otherwise there is an empty window despite having set the text.
 import "codemirror/addon/display/autorefresh.js";
 
+import { ezToast } from 'core/ezq';
+
 export default {
   props: {
     challenge_id: Number
@@ -34,6 +41,7 @@ export default {
     codemirror,
   },
   data: () => ({
+    kubernetesEnabled: false,
     kubeneretesDescriptionCode: null,
     cmOptions: {
       tabSize: 2,
@@ -46,7 +54,7 @@ export default {
     }
   }),
   methods: {
-    loadDeploymentCode: function() {
+    loadKubernetesConfig: function() {
       CTFd.fetch(`/api/v1/challenges/${this.$props.challenge_id}`, {
         method: "GET",
         credentials: "same-origin",
@@ -60,34 +68,38 @@ export default {
         })
         .then(response => {
           if (response.success) {
+            this.kubernetesEnabled = response.data.kubernetes_enabled ?? false,
             this.kubeneretesDescriptionCode = response.data.kubernetes_description ?? "";
           }
         });
     },
     submitDeployment: function() {
       const kubernetes_description = this.kubeneretesDescriptionCode.trim();
-      if (kubernetes_description.length > 0) {
-        const body = {
-          kubernetes_description,
-        };
-        CTFd.fetch(`/api/v1/challenges/${this.challenge_id}`, {
-          method: "PATCH",
-          credentials: "same-origin",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(body),
-        })
-          .then((response) => response.json())
-          .then(response => {
-            console.log(response);
-          });
-      }
+      const body = {
+        kubernetes_enabled: this.kubernetesEnabled,
+        kubernetes_description,
+      };
+      CTFd.fetch(`/api/v1/challenges/${this.challenge_id}`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body),
+      })
+        .then((response) => response.json())
+        .then((response) => {
+          ezToast({
+            title: "Sucessfully saved",
+            body: `Your Kubernetes configuration is updated${body.kubernetes_enabled ? " and will be used on all new challenge starts": ""}.`
+          })
+        });
+
     },
   },
-  mounted() {
-    this.loadDeploymentCode()
+  created() {
+    this.loadKubernetesConfig()
   }
 };
 </script>

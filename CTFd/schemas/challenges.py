@@ -71,6 +71,11 @@ class ChallengeSchema(ma.ModelSchema):
         Challenges, "requirements", validate=[ChallengeRequirementsValidator()],
     )
 
+    kubernetes_enabled = field_for(
+        Challenges,
+        "kubernetes_enabled",
+    )
+
     kubernetes_description = field_for(
         Challenges,
         "kubernetes_description",
