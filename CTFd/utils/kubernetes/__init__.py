@@ -1,4 +1,5 @@
 import base64
+import json
 import re
 import os
 import yaml
@@ -8,6 +9,7 @@ from kubernetes import client
 from kubernetes.client.rest import ApiException
 from kubernetes.utils import FailToCreateError
 from kubernetes.utils.create_from_yaml import create_from_dict
+from kubernetes.watch import Watch
 
 def k8s_enabled() -> bool:
     return get_app_config("KUBERNETES_ENABLED")
@@ -49,6 +51,25 @@ def challenge_k8s_state(user_id, challenge_id) -> str:
             else:
                 return "unknown"
     return "stopped"
+
+
+def challenge_k8s_state_stream(user_id, challenge_id):
+    k8s_client = create_k8s_client()
+    core_k8s_client = client.CoreV1Api(k8s_client)
+
+    namespace = get_namespace(user_id, challenge_id)
+
+    watch = Watch()
+    for event in watch.stream(func=core_k8s_client.list_namespace):
+        if event['object'].kind == "Namespace" and event['object'].metadata.name == namespace:
+            if event['type'] == 'ADDED' and event['object'].status.phase == 'Active':
+                yield "data: started\n\n"
+            elif event['type'] == 'MODIFIED':
+                if event['object'].status.phase == 'Terminating':
+                    yield 'data: stopping\n\n'
+            elif event['type'] == 'DELETED':
+                yield "data: stopped\n\n"
+                watch.stop()
 
 def create_service_account_token(k8s_client, namespace) -> str:
     core_k8s_client = client.CoreV1Api(k8s_client)
@@ -143,9 +164,9 @@ def start_challenge(user_id, challenge):
     try:
         token = create_service_account_token(k8s_client, namespace)
         k8s_manager_client = create_k8s_client(token)
-    except ApiException:
+    except ApiException as exc:
         stop_challenge(user_id, challenge.id)
-        raise Exception("Could not create service account")
+        raise Exception("Could not create service account: {}".format(exc)) from exc
 
     # Create the deployments.
     try:

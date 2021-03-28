@@ -8,6 +8,9 @@ import $ from "jquery";
 import CTFd from "../CTFd";
 import config from "../config";
 import hljs from "highlight.js";
+import { NativeEventSource, EventSourcePolyfill } from "event-source-polyfill";
+
+const EventSource = NativeEventSource || EventSourcePolyfill;
 
 dayjs.extend(relativeTime);
 
@@ -93,6 +96,12 @@ const displayChal = chal => {
 
     // Handle modal toggling
     $("#challenge-window").on("hide.bs.modal", function(_event) {
+      // Stop listening to events.
+      const evtSource = $(this).data("eventSource");
+      if (evtSource) {
+        evtSource.close();
+      }
+
       $("#challenge-input").removeClass("wrong");
       $("#challenge-input").removeClass("correct");
       $("#incorrect-key").slideUp();
@@ -145,25 +154,25 @@ const displayChal = chal => {
     }
 
     if (challenge.data.kubernetes_enabled) {
-      loadChallengeKubernetesState(chal.id, (state) => {
-        // Some small utility functions for animating the buttons.
-        const disableButtonSpin = (button) => {
-          $(button).attr("disabled", "true");
-          $(button).find("i")
-            .removeAttr("class")
-            .addClass("fas")
-            .addClass("fa-circle-notch")
-            .addClass("fa-spin");
-        }
-        const enableButton = (button, fa_class) => {
-          $(button).removeAttr("disabled");
-          $(button).find("i")
-            .removeClass("fa-circle-notch")
-            .removeClass("fa-spin")
-            .addClass("fas")
-            .addClass(fa_class);
-        }
+      // Some small utility functions for animating the buttons.
+      const disableButtonSpin = (button) => {
+        $(button).attr("disabled", "true");
+        $(button).find("i")
+          .removeAttr("class")
+          .addClass("fas")
+          .addClass("fa-circle-notch")
+          .addClass("fa-spin");
+      }
+      const enableButton = (button, fa_class) => {
+        $(button).removeAttr("disabled");
+        $(button).find("i")
+          .removeClass("fa-circle-notch")
+          .removeClass("fa-spin")
+          .addClass("fas")
+          .addClass(fa_class);
+      }
 
+      loadChallengeKubernetesState(chal.id, (state) => {
         const startButtonHtml = "<button id=\"challenge-start\"><i class=\"fas fa-play\"></i>&nbsp;Start the challenge</button>";
         const startButton = $(startButtonHtml).on("click", function() {
           // Disable the button until response arrived.
@@ -179,11 +188,6 @@ const displayChal = chal => {
               if (!response.success) {
                 throw Error(response.data.message);
               }
-
-              // If yes, show the stop button.
-              $(this).hide();
-              enableButton(this, "fa-play");
-              $("#challenge-stop").show();
             })
             .catch((error) => {
               enableButton(this, "fa-play")
@@ -206,8 +210,6 @@ const displayChal = chal => {
               if (!response.success) {
                 throw Error(response.data.message);
               }
-
-              disableButtonSpin(this);
             })
             .catch((error) => {
               enableButton(this, "fa-stop");
@@ -216,27 +218,41 @@ const displayChal = chal => {
         });
 
         // Apply the state.
-        switch (state) {
-          case "stopped":
-            startButton.show();
-            stopButton.hide();
-            break;
-          case "starting":
-            disableButtonSpin(startButton);
-            stopButton.show()
-            stopButton.hide();
-            break;
-          case "started":
-            startButton.hide();
-            stopButton.show();
-            break;
-          case "stopping":
-            startButton.hide();
-            disableButtonSpin(stopButton);
-            stopButton.show()
-            break;
-          default:
-            throw "Unknown state";
+        const applyState = (state) => {
+          switch (state) {
+            case "stopped":
+              enableButton(startButton, "fa-play");
+              startButton.show();
+              stopButton.hide();
+              break;
+            case "starting":
+              disableButtonSpin(startButton);
+              startButton.show();
+              stopButton.hide()
+              break;
+            case "started":
+              enableButton(stopButton, "fa-stop");
+              startButton.hide();
+              stopButton.show();
+              break;
+            case "stopping":
+              startButton.hide();
+              disableButtonSpin(stopButton);
+              stopButton.show()
+              break;
+            default:
+              throw "Unknown state";
+          }
+        }
+        applyState(state);
+        const evtSource = new EventSource(`/api/v1/challenges/${chal.id}/k8s`);
+        $("#challenge-window").data("eventSource", evtSource);
+        evtSource.onmessage = function(event) {
+          try {
+            applyState(event.data);
+          } catch (error) {
+            console.error(error);
+          }
         }
         // Append the buttons.
         startButton.appendTo("#challenge-control");

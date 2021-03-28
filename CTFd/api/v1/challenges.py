@@ -1,7 +1,14 @@
 import datetime
 from typing import List
 
-from flask import abort, render_template, request, url_for
+from flask import (
+    abort,
+    render_template,
+    request,
+    url_for,
+    Response,
+    stream_with_context
+)
 from flask_restx import Namespace, Resource
 from sqlalchemy import func as sa_func
 from sqlalchemy.sql import and_, false, true
@@ -59,7 +66,13 @@ from CTFd.utils.user import (
     get_current_user_attrs,
     is_admin,
 )
-from CTFd.utils.kubernetes import k8s_enabled, challenge_k8s_state, start_challenge, stop_challenge
+from CTFd.utils.kubernetes import (
+    k8s_enabled,
+    challenge_k8s_state,
+    challenge_k8s_state_stream,
+    start_challenge,
+    stop_challenge,
+)
 from CTFd.plugins import bypass_csrf_protection
 
 challenges_namespace = Namespace(
@@ -539,9 +552,16 @@ class ChallengeK8S(Resource):
     def get(self, challenge_id):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         user = get_current_user()
-        data = dict()
-        data["k8s_state"] = challenge_k8s_state(user.id, challenge.id)
-        return {"success": True, "data": data}
+        if request.headers.get('Accept') == "text/event-stream":
+            return Response(
+                stream_with_context(challenge_k8s_state_stream(user.id, challenge.id)),
+                mimetype='text/event-stream'
+            )
+        else:
+            data = {
+                "k8s_state": challenge_k8s_state(user.id, challenge.id)
+            }
+            return {"success": True, "data": data}
 
     @require_kubernetes_enabled
     @authed_only
@@ -557,7 +577,7 @@ class ChallengeK8S(Resource):
         try:
             start_challenge(user.id, challenge)
             return {"success": True, "data": {
-                "running": "starting"
+                "k8s_state": "starting"
             }}
         except Exception as e:
             return {"success": False, "data": {
@@ -574,7 +594,7 @@ class ChallengeK8S(Resource):
         try:
             stop_challenge(user.id, challenge.id)
             return {"success": True, "data": {
-                "message": "Challenge stopping."
+                "k8s_state": "stopping"
             }}
         except Exception as e:
             return {"success": False, "data": {
