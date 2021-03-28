@@ -31,7 +31,7 @@ class Notifications(db.Model):
     title = db.Column(db.Text)
     content = db.Column(db.Text)
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    user_id = db.Column(db.String(256), db.ForeignKey("users.id"))
+    user_id = db.Column(db.String(255), db.ForeignKey("users.id"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id"))
 
     user = db.relationship("Users", foreign_keys="Notifications.user_id", lazy="select")
@@ -159,7 +159,7 @@ class Hints(db.Model):
 class Awards(db.Model):
     __tablename__ = "awards"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(256), db.ForeignKey("users.id", ondelete="CASCADE"))
+    user_id = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
     type = db.Column(db.String(80), default="standard")
     name = db.Column(db.String(80))
@@ -262,7 +262,7 @@ class Users(db.Model):
     __tablename__ = "users"
     __table_args__ = (db.UniqueConstraint("id"), {})
     # Core attributes
-    id = db.Column(db.String(256), primary_key=True)
+    id = db.Column(db.String(255), primary_key=True)
     # User names are not constrained to be unique to allow for official/unofficial teams.
     name = db.Column(db.String(128))
     password = db.Column(db.String(128))
@@ -466,7 +466,7 @@ class Teams(db.Model):
     banned = db.Column(db.Boolean, default=False)
 
     # Relationship for Users
-    captain_id = db.Column(db.String(256), db.ForeignKey("users.id", ondelete="SET NULL"))
+    captain_id = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="SET NULL"))
     captain = db.relationship("Users", foreign_keys=[captain_id])
 
     field_entries = db.relationship(
@@ -661,7 +661,7 @@ class Submissions(db.Model):
     challenge_id = db.Column(
         db.Integer, db.ForeignKey("challenges.id", ondelete="CASCADE")
     )
-    user_id = db.Column(db.String(256), db.ForeignKey("users.id", ondelete="CASCADE"))
+    user_id = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
     ip = db.Column(db.String(46))
     provided = db.Column(db.Text)
@@ -724,7 +724,7 @@ class Solves(Submissions):
         Submissions.challenge_id,
     )
     user_id = column_property(
-        db.Column(db.String(256), db.ForeignKey("users.id", ondelete="CASCADE")),
+        db.Column(db.String(255), db.ForeignKey("users.id", ondelete="CASCADE")),
         Submissions.user_id,
     )
     team_id = column_property(
@@ -748,7 +748,7 @@ class Fails(Submissions):
 class Unlocks(db.Model):
     __tablename__ = "unlocks"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(256), db.ForeignKey("users.id", ondelete="CASCADE"))
+    user_id = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="CASCADE"))
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id", ondelete="CASCADE"))
     target = db.Column(db.Integer)
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -779,7 +779,7 @@ class Tracking(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(32))
     ip = db.Column(db.String(46))
-    user_id = db.Column(db.String(256), db.ForeignKey("users.id", ondelete="CASCADE"))
+    user_id = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="CASCADE"))
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     user = db.relationship("Users", foreign_keys="Tracking.user_id", lazy="select")
@@ -807,7 +807,7 @@ class Tokens(db.Model):
     __tablename__ = "tokens"
     id = db.Column(db.Integer, primary_key=True)
     type = db.Column(db.String(32))
-    user_id = db.Column(db.String(256), db.ForeignKey("users.id", ondelete="CASCADE"))
+    user_id = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="CASCADE"))
     created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     expiration = db.Column(
         db.DateTime,
@@ -836,7 +836,7 @@ class Comments(db.Model):
     type = db.Column(db.String(80), default="standard")
     content = db.Column(db.Text)
     date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    author_id = db.Column(db.String(256), db.ForeignKey("users.id", ondelete="CASCADE"))
+    author_id = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="CASCADE"))
     author = db.relationship("Users", foreign_keys="Comments.author_id", lazy="select")
 
     @property
@@ -917,7 +917,7 @@ class FieldEntries(db.Model):
 
 class UserFieldEntries(FieldEntries):
     __mapper_args__ = {"polymorphic_identity": "user"}
-    user_id = db.Column(db.String(256), db.ForeignKey("users.id", ondelete="CASCADE"))
+    user_id = db.Column(db.String(255), db.ForeignKey("users.id", ondelete="CASCADE"))
     user = db.relationship("Users", foreign_keys="UserFieldEntries.user_id")
 
 

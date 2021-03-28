@@ -210,7 +210,7 @@ def init_request_processors(app):
             return
 
         # Do not track login events as we might not have the user in our DB causing a foreign key violation
-        if authed() and request.endpoint != 'auth.login':
+        if authed() and request.endpoint not in ['auth.login', 'views.setup']:
             user_ips = get_current_user_recent_ips()
             ip = get_ip()
 

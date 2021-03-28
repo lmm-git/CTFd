@@ -223,8 +223,9 @@ def create_app(config="CTFd.config.Config"):
                 cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()
 
-            db.create_all()
-            stamp_latest_revision()
+            # db.create_all()
+            # stamp_latest_revision()
+            upgrade()
         else:
             # This creates tables instead of db.create_all()
             # Allows migrations to happen properly
