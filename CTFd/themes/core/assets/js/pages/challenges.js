@@ -116,6 +116,130 @@ const displayChal = chal => {
         .then(markSolves);
     });
 
+
+    // Kubernetes challenge starting.
+    const showControlError = (message) => {
+      var controlErrorEl = $('#control-error').length ? 
+        $('#control-error') 
+        : $('<span id="control-error"></span>').appendTo('#challenge-control');
+      controlErrorEl.text(message);
+    }
+    /**
+     * Load the state of a challenge from the server.
+     * 
+     * Values from the server are: starting, started, stopping, stopped, unknown.
+     */
+    const loadChallengeState = (challenge_id, handler) => {
+      CTFd.fetch(`/api/v1/challenges/${challenge_id}/k8s`)
+        .then((response) => response.json())
+        .then((response) => {
+          if (!response.success) {
+            throw new Error(response.data.message)
+          }
+
+          handler(response.data.k8s_state);
+        })
+        .catch((error) => {
+          showControlError(error);
+        })
+    }
+
+    loadChallengeState(chal.id, (state) => {
+      // Some small utility functions for animating the buttons.
+      const disableButtonSpin = (button) => {
+        $(button).attr("disabled", "true");
+        $(button).find("i")
+          .removeAttr("class")
+          .addClass("fas")
+          .addClass("fa-circle-notch")
+          .addClass("fa-spin");
+      }
+      const enableButton = (button, fa_class) => {
+        $(button).removeAttr("disabled");
+        $(button).find("i")
+          .removeClass("fa-circle-notch")
+          .removeClass("fa-spin")
+          .addClass("fas")
+          .addClass(fa_class);
+      }
+
+      const startButtonHtml = "<button id=\"challenge-start\"><i class=\"fas fa-play\"></i>&nbsp;Start the challenge</button>";
+      const startButton = $(startButtonHtml).on("click", function() {
+        // Disable the button until response arrived.
+        disableButtonSpin(this);
+
+        // Send the challenge start request...
+        CTFd.fetch(`/api/v1/challenges/${chal.id}/k8s`, {
+          method: "POST",
+        })
+          .then((response) => response.json())
+          .then((response) => {
+            // ...and check whether it was successfull.
+            if (!response.success) {
+              throw Error(response.data.message);
+            }
+  
+            // If yes, show the stop button.
+            $(this).hide();
+            enableButton(this, "fa-play");
+            $("#challenge-stop").show();
+          })
+          .catch((error) => {
+            enableButton(this, "fa-play")
+            showControlError(`There was an error starting the challenge: ${error}`);
+          });
+      });
+  
+      const stopButtonHtml = "<button id=\"challenge-stop\"><i class=\"fas fa-stop\"></i>&nbsp;Stop the challenge</button>";
+      const stopButton = $(stopButtonHtml).on("click", function() {
+        // Disable the button until response arrived.
+        disableButtonSpin(this);
+
+        // Send the challenge stop request...
+        CTFd.fetch(`/api/v1/challenges/${chal.id}/k8s`, {
+          method: "DELETE",
+        })
+          .then((response) => response.json())
+          .then((response) => {
+            // ...and check whether it was successfull.
+            if (!response.success) {
+              throw Error(response.data.message);
+            }
+  
+            // If yes, show the start button.
+            $(this).hide();
+            enableButton(this, "fa-stop");
+            $("#challenge-start").show();
+          })
+          .catch((error) => {
+            enableButton(this, "fa-stop");
+            showControlError(`There was an error starting the challenge: ${error}`);
+          });
+      });
+
+      // Apply the state.
+      switch (state) {
+        case "stopped":
+          startButton.show();
+          stopButton.hide();
+          break;
+        case "started":
+          startButton.hide();
+          stopButton.show();
+          break;
+        case "stopping":
+          startButton.hide();
+          disableButtonSpin(stopButton);
+          stopButton.show()
+          break;
+        default:
+          throw "Not Implemented";
+      }
+      // Append the buttons.
+      startButton.appendTo("#challenge-control");
+      stopButton.appendTo("#challenge-control");
+    });
+
     $("#challenge-input").keyup(event => {
       if (event.keyCode == 13) {
         $("#challenge-submit").click();

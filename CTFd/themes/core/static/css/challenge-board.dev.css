@@ -36,3 +36,14 @@
 .key-submit .btn {
   height: 51px; }
 
+#control-error {
+  color: #db2121;
+  display: block;
+  font-size: small; }
+
+#challenge-control #challenge-start i {
+  color: #37d63e; }
+
+#challenge-control #challenge-stop i {
+  color: #db2121; }
+

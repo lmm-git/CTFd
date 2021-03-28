@@ -58,7 +58,7 @@ from CTFd.utils.user import (
     get_current_user_attrs,
     is_admin,
 )
-from CTFd.utils.kubernetes import challenge_running_state, start_challenge, stop_challenge
+from CTFd.utils.kubernetes import challenge_k8s_state, start_challenge, stop_challenge
 from CTFd.plugins import bypass_csrf_protection
 
 challenges_namespace = Namespace(
@@ -469,7 +469,7 @@ class Challenge(Resource):
         if is_admin():
             response["kubernetes_description"] = chal.kubernetes_description
 
-        response["running"] = challenge_running_state(user.account_id, chal.id)
+        challenge_state = challenge_k8s_state(user.account_id, chal.id)
 
         response["solves"] = solve_count
         response["solved_by_me"] = solved_by_user
@@ -488,6 +488,7 @@ class Challenge(Resource):
             max_attempts=chal.max_attempts,
             attempts=attempts,
             challenge=chal,
+            challenge_state=challenge_state,
         )
 
         db.session.close()
@@ -538,7 +539,7 @@ class ChallengeK8S(Resource):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         user = get_current_user()
         data = dict()
-        data["running"] = challenge_running_state(user.id, challenge.id)
+        data["k8s_state"] = challenge_k8s_state(user.id, challenge.id)
         return {"success": True, "data": data}
 
     @authed_only

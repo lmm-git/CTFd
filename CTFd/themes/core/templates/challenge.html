@@ -38,12 +38,7 @@
 
 						<span class="challenge-desc">{% block description %}{{ challenge.html }}{% endblock %}</span>
 
-						<span class="challenge-control">
-							<i class="fas fa-play"></i>
-							{% block kubernetes %}
-							
-							{% endblock %}
-						</span>
+						<div id="challenge-control"></div>
 
 						<div class="challenge-hints hint-row row">
 							{% for hint in hints %}
