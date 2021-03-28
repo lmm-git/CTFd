@@ -6,7 +6,7 @@ services:
     user: root
     restart: always
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - UPLOAD_FOLDER=/var/uploads
       - DATABASE_URL=mysql+pymysql://ctfd:ctfd@db/ctfd
@@ -23,11 +23,11 @@ services:
     depends_on:
       - db
     networks:
-        default:
-        internal:
+      default:
+      internal:
 
   nginx:
-    image: nginx:1.17
+    image: nginx:1.18
     restart: always
     volumes:
       - ./conf/nginx/http.conf:/etc/nginx/nginx.conf
@@ -47,7 +47,7 @@ services:
     volumes:
       - .data/mysql:/var/lib/mysql
     networks:
-        internal:
+      internal:
     # This command is required to set important mariadb defaults
     command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --wait_timeout=28800, --log-warnings=0]
 
@@ -57,9 +57,9 @@ services:
     volumes:
     - .data/redis:/data
     networks:
-        internal:
+      internal:
 
 networks:
     default:
     internal:
-        internal: true
+      internal: true

@@ -78,3 +78,9 @@ node_modules/
 
 # Flask Profiler files
 flask_profiler.sql
+
+# Certificates
+*.crt
+
+# Possibly sensible settings
+CTFd/config.ini

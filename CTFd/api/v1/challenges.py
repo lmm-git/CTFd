@@ -38,6 +38,7 @@ from CTFd.utils.config.visibility import (
 from CTFd.utils.dates import ctf_ended, ctf_paused, ctftime, isoformat, unix_time_to_utc
 from CTFd.utils.decorators import (
     admins_only,
+    authed_only,
     during_ctf_time_only,
     require_verified_emails,
 )
@@ -57,6 +58,7 @@ from CTFd.utils.user import (
     get_current_user_attrs,
     is_admin,
 )
+from CTFd.utils.kubernetes import is_challenge_running
 
 challenges_namespace = Namespace(
     "challenges", description="Endpoint to retrieve Challenges"
@@ -463,6 +465,11 @@ class Challenge(Resource):
         else:
             attempts = 0
 
+        if is_admin():
+            response["kubernetes_deployment"] = chal.kubernetes_deployment
+
+        response["running"] = is_challenge_running(user.account_id, challenge.id)
+
         response["solves"] = solve_count
         response["solved_by_me"] = solved_by_user
         response["attempts"] = attempts
@@ -498,7 +505,6 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
-
         # Load data through schema for validation but not for insertion
         schema = ChallengeSchema()
         response = schema.load(data)
@@ -523,6 +529,30 @@ class Challenge(Resource):
 
         return {"success": True}
 
+@challenges_namespace.route("/<challenge_id>/k8s")
+class ChallengeK8S(Resource):
+    @authed_only
+    @require_verified_emails
+    @during_ctf_time_only
+    def get(self, challenge_id):
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        user = get_current_user()
+        data = dict()
+        data["running"] = is_challenge_running(user.id, challenge.id)
+        return {"success": True, "data": data}
+
+    @authed_only
+    @require_verified_emails
+    @during_ctf_time_only
+    def post(self, challenge_id):
+        return {"success": True, "data": "cat"}
+
+    @authed_only
+    @require_verified_emails
+    @during_ctf_time_only
+    def delete(self, challenge_id):
+        """ Stop the challenge """
+        return {"success": True, "data": "cat"}
 
 @challenges_namespace.route("/attempt")
 class ChallengeAttempt(Resource):

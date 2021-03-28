@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ctfd
+
+---
+
+# kubectl describe secret -n ctfd $(kubectl get serviceaccounts ctfd-deploy -n ctfd -o=jsonpath='{.secrets[0].name}{"\n"}')
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ctfd-deploy
+  namespace: ctfd
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ctf-operator
+rules:
+- apiGroups: [""]
+  resources: ["services", "namespaces"]
+  verbs: ["list", "get", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["list", "get", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses", "networkpolicies"]
+  verbs: ["list", "get", "watch", "create", "update", "patch", "delete"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ctfd-cluster-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ctf-operator
+subjects:
+- kind: ServiceAccount
+  name: ctfd-deploy
+  namespace: ctfd
