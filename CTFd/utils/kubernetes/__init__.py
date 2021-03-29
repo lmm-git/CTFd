@@ -4,6 +4,8 @@ import re
 import os
 import yaml
 
+from typing import List, Tuple
+
 from CTFd.utils import get_app_config
 from kubernetes import client
 from kubernetes.client.rest import ApiException
@@ -36,7 +38,42 @@ def get_namespace(user_id, challenge_id) -> str:
     fixed_user_id = re.sub(r'[^A-Za-z0-9]+', '', str(user_id))
     return 'ctfd-challenges-{}-{}'.format(fixed_user_id, str(challenge_id))
 
-def challenge_k8s_state(user_id, challenge_id) -> str:
+def _check_endpoint_ready(endpoint) -> bool:
+    if not endpoint.subsets:
+        return False
+    # If there are no "not_ready_adresses", all pods are ready
+    if all(map(lambda subset: not subset.not_ready_addresses, endpoint.subsets)):
+        return True
+    return False
+
+def _get_exposed_services(core_k8s_client, namespace, watch=False) -> List[Tuple[str, int, bool]]:
+    services = core_k8s_client.list_namespaced_service(namespace, label_selector="ctfd=expose")
+    ip_ports = []
+    for service in services.items:
+        all_endpoints_ready = False
+        if watch:
+            endpoint_watch = Watch()
+            for endpoint_event in endpoint_watch.stream(func=core_k8s_client.list_namespaced_endpoints,
+                    namespace=namespace,
+                    field_selector="metadata.name={}".format(service.metadata.name)):
+                endpoint = endpoint_event["object"]
+                if _check_endpoint_ready(endpoint):
+                    all_endpoints_ready = True
+                    endpoint_watch.stop()
+        else:
+            endpoints = core_k8s_client.list_namespaced_endpoints(namespace,
+                field_selector="metadata.name={}".format(service.metadata.name)
+            )
+            all_endpoints_ready = all(map(lambda endpoint: _check_endpoint_ready(endpoint), endpoints.items))
+
+        cluster_ip = service.spec.cluster_ip
+        for port in service.spec.ports:
+            ip_ports.append((cluster_ip, port.port, all_endpoints_ready))
+
+    return ip_ports
+
+def challenge_k8s_state(user_id, challenge_id) -> (str, List[Tuple[str, int]]):
+    """Retrieves the current state of the challenge including all exposed IPs and ports"""
     k8s_client = create_k8s_client()
     core_k8s_client = client.CoreV1Api(k8s_client)
 
@@ -45,13 +82,18 @@ def challenge_k8s_state(user_id, challenge_id) -> str:
     for ns in existing_namespaces.items:
         if ns.metadata.name == namespace:
             if ns.status.phase == "Terminating":
-                return "stopping"
+                return ("stopping", None)
             elif ns.status.phase == "Active":
-                return "started"
+                exposed = _get_exposed_services(core_k8s_client, namespace)
+                all_services_ready = all(map(lambda tpl: tpl[2], exposed))
+                if not all_services_ready:
+                    return("starting", None)
+                else:
+                    ip_ports = list(map(lambda expose: expose[:-1], exposed))
+                    return ("started", ip_ports)
             else:
-                return "unknown"
-    return "stopped"
-
+                return ("unknown", None)
+    return ("stopped", None)
 
 def challenge_k8s_state_stream(user_id, challenge_id):
     k8s_client = create_k8s_client()
@@ -60,16 +102,26 @@ def challenge_k8s_state_stream(user_id, challenge_id):
     namespace = get_namespace(user_id, challenge_id)
 
     watch = Watch()
-    for event in watch.stream(func=core_k8s_client.list_namespace):
-        if event['object'].kind == "Namespace" and event['object'].metadata.name == namespace:
-            if event['type'] == 'ADDED' and event['object'].status.phase == 'Active':
-                yield "data: started\n\n"
-            elif event['type'] == 'MODIFIED':
-                if event['object'].status.phase == 'Terminating':
-                    yield 'data: stopping\n\n'
-            elif event['type'] == 'DELETED':
-                yield "data: stopped\n\n"
+    for event in watch.stream(func=core_k8s_client.list_namespace, field_selector="metadata.name={}".format(namespace)):
+        the_namespace = event["object"]
+        if the_namespace.status.phase == "Active":
+            state = {"state": "starting", "exposed": None}
+            yield "data: {}\n\n".format(json.dumps(state))
+            if the_namespace.metadata.labels and the_namespace.metadata.labels.get("ctfd", None) == "ready":
+                # From here on, it's only the starting case.
+                exposed_services = _get_exposed_services(core_k8s_client, namespace, watch=True)
+                exposed = [{ "host": ip, "port": port } for (ip, port, _) in exposed_services]
+                state = {"state": "started", "exposed": exposed}
+                yield "data: {}\n\n".format(json.dumps(state))
+
+        elif the_namespace.status.phase == "Terminating":
+            state = {"state": "stopping", "exposed": None}
+            yield "data: {}\n\n".format(json.dumps(state))
+            if event['type'] == 'DELETED':
+                state = {"state": "stopped", "exposed": None}
+                yield "data: {}\n\n".format(json.dumps(state))
                 watch.stop()
+                return
 
 def create_service_account_token(k8s_client, namespace) -> str:
     core_k8s_client = client.CoreV1Api(k8s_client)
@@ -190,6 +242,13 @@ def start_challenge(user_id, challenge):
     except FailToCreateError as e:
         stop_challenge(user_id, challenge.id)
         raise Exception("Challenge could not be created: {}.".format(e)) from e
+
+    # Mark this namespace as ready (for listeners).
+    try:
+        core_k8s_client.patch_namespace(namespace, body={"metadata": {"labels": {"ctfd": "ready"}}})
+    except ApiException as e:
+        stop_challenge(user_id, challenge.id)
+        raise Exception("Namespace could not be marked as ready: {}.".format(e)) from e
 
 
 def stop_challenge(user_id, challenge_id):

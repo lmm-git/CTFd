@@ -558,8 +558,12 @@ class ChallengeK8S(Resource):
                 mimetype='text/event-stream'
             )
         else:
+            state = challenge_k8s_state(user.id, challenge.id)
             data = {
-                "k8s_state": challenge_k8s_state(user.id, challenge.id)
+                "k8s_state": {
+                    "state": state[0],
+                    "exposed": [{ "host": ip, "port": port } for (ip, port) in state[1]] if state[1] else None
+                }
             }
             return {"success": True, "data": data}
 

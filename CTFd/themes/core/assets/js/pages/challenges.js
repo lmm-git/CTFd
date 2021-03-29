@@ -136,7 +136,8 @@ const displayChal = chal => {
     /**
      * Load the state of a challenge from the server.
      *
-     * Values from the server are: starting, started, stopping, stopped, unknown.
+     * Values for `k8s_state.state` from the server are: starting, started, stopping, stopped, unknown.
+     * `k8s_state.ips` contains a list of exposed IPs and ports.
      */
     const loadChallengeKubernetesState = (challenge_id, handler) => {
       CTFd.fetch(`/api/v1/challenges/${challenge_id}/k8s`)
@@ -172,7 +173,7 @@ const displayChal = chal => {
           .addClass(fa_class);
       }
 
-      loadChallengeKubernetesState(chal.id, (state) => {
+      loadChallengeKubernetesState(chal.id, (k8s_state) => {
         const startButtonHtml = "<button id=\"challenge-start\"><i class=\"fas fa-play\"></i>&nbsp;Start the challenge</button>";
         const startButton = $(startButtonHtml).on("click", function() {
           // Disable the button until response arrived.
@@ -217,46 +218,72 @@ const displayChal = chal => {
             });
         });
 
-        // Apply the state.
-        const applyState = (state) => {
-          switch (state) {
+        const applyState = (k8s_state) => {
+          console.log(k8s_state);
+          // Apply the state to the buttons.
+          switch (k8s_state.state) {
             case "stopped":
               enableButton(startButton, "fa-play");
               startButton.show();
               stopButton.hide();
+              $("#connection-overview").remove();
               break;
             case "starting":
               disableButtonSpin(startButton);
               startButton.show();
-              stopButton.hide()
+              stopButton.hide();
+              $("#connection-overview").remove();
               break;
             case "started":
               enableButton(stopButton, "fa-stop");
               startButton.hide();
               stopButton.show();
+              if (k8s_state.exposed) {
+                // Show exposed IPs and ports but remove old list beforehand.
+                $("#connection-overview").find("ul").remove();
+                const hostPortList = $("<ul></ul>");
+                k8s_state.exposed.forEach(({host, port}) => {
+                  $("<li></li>").text(`${host}:${port}`).appendTo(hostPortList);
+                });
+                const connectionOverview = $("<div id=\"connection-overview\"><br /><span>Your challenge is reachable on:</span></div>");
+                hostPortList.appendTo(connectionOverview);
+                connectionOverview.appendTo("#challenge-control");
+              }
               break;
             case "stopping":
               startButton.hide();
               disableButtonSpin(stopButton);
-              stopButton.show()
+              stopButton.show();
+              $("#connection-overview").remove();
               break;
             default:
               throw "Unknown state";
           }
         }
-        applyState(state);
+
+        // Append the buttons.
+        stopButton.prependTo("#challenge-control");
+        startButton.prependTo("#challenge-control");
+
+        applyState(k8s_state);
+        
+        // Listen to update events.
         const evtSource = new EventSource(`/api/v1/challenges/${chal.id}/k8s`);
         $("#challenge-window").data("eventSource", evtSource);
         evtSource.onmessage = function(event) {
           try {
-            applyState(event.data);
+            k8sEvent = JSON.parse(event.data)
+            console.log(k8sEvent)
+            if (k8sEvent.state) {
+              applyState(k8sEvent);
+            } else {
+              throw Error(`Invalid state format received from k8s status: ${JSON.stringify(event.data)}`);
+            }
           } catch (error) {
             console.error(error);
           }
         }
-        // Append the buttons.
-        startButton.appendTo("#challenge-control");
-        stopButton.appendTo("#challenge-control");
+        
       });
     }
     $("#challenge-input").keyup(event => {
