@@ -8,6 +8,7 @@ from flask import current_app as app
 from flask import redirect, request, url_for
 from requests_oauthlib import OAuth2Session
 
+from CTFd.config import Config
 from CTFd.constants.config import RegistrationVisibilityTypes, ConfigTypes
 from CTFd.models import Users, db
 from CTFd.utils import config, email, get_config
@@ -22,11 +23,10 @@ auth = Blueprint("auth", __name__)
 
 logging.basicConfig(level=logging.DEBUG)
 
-client_id = getenv('OAUTH_CLIENT_ID', None)
-client_secret = getenv('OAUTH_CLIENT_SECRET', None)
-auth_base_uri = getenv('OAUTH_CLIENT_BASE_URI', None)
-
-auth_well_known = requests.get(f'{auth_base_uri}/.well-known/openid-configuration').json()
+if Config.OAUTH_CLIENT_BASE_URI:
+    auth_well_known = requests.get(f'{Config.OAUTH_CLIENT_BASE_URI}/.well-known/openid-configuration').json()
+else:
+    auth_well_known = None
 
 # Enable insecure transport for development
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = getenv('FLASK_DEBUG', '0')
@@ -35,7 +35,10 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = getenv('FLASK_DEBUG', '0')
 @auth.route("/login", methods=["GET"])
 @ratelimit(method="GET", limit=10, interval=5)
 def login():
-    oauth = OAuth2Session(client_id, redirect_uri=url_for('auth.authorize', _external=True),
+    if not auth_well_known:
+        return abort(500), 'OAUTH not configured'
+
+    oauth = OAuth2Session(Config.OAUTH_CLIENT_ID, redirect_uri=url_for('auth.authorize', _external=True),
                           scope=['openid', 'email'])
 
     authorization_url, state = oauth.authorization_url(auth_well_known['authorization_endpoint'])
@@ -47,9 +50,12 @@ def login():
 @auth.route("/login/authorize", methods=["GET"])
 @ratelimit(method="GET", limit=10, interval=5)
 def authorize():
-    oauth = OAuth2Session(client_id, state=session['oauth_state'],
+    if not auth_well_known:
+        return abort(500), 'OAUTH not configured'
+
+    oauth = OAuth2Session(Config.OAUTH_CLIENT_ID, state=session['oauth_state'],
                           redirect_uri=url_for('auth.authorize', _external=True))
-    token = oauth.fetch_token(auth_well_known['token_endpoint'], client_secret=client_secret,
+    token = oauth.fetch_token(auth_well_known['token_endpoint'], client_secret=Config.OAUTH_CLIENT_SECRET,
                               authorization_response=request.url)
 
     session['oauth_token'] = token

@@ -32,7 +32,6 @@ CTFd is a Capture The Flag framework focusing on ease of use and customizability
 - Markdown content management system
 - SMTP + Mailgun email support
   - Email confirmation support
-  - Forgot password support
 - Automatic competition starting and ending
 - Team management, hiding, and banning
 - Customize everything using the [plugin](https://docs.ctfd.io/docs/plugins/) and [theme](https://docs.ctfd.io/docs/themes/) interfaces
@@ -43,8 +42,9 @@ CTFd is a Capture The Flag framework focusing on ease of use and customizability
 
 1. Install dependencies: `pip install -r requirements.txt`
    1. You can also use the `prepare.sh` script to install system dependencies using apt.
-2. Modify [CTFd/config.ini](https://github.com/CTFd/CTFd/blob/master/CTFd/config.ini) to your liking.
-3. Use `python serve.py` or `flask run` in a terminal to drop into debug mode.
+1. Set up a OAUTH provider (like Keycloak: Confidential OIDC client, without Direct Grants should work fine. Admins should have `admin` in `group` claim list).
+1. Modify [CTFd/config.ini](https://github.com/CTFd/CTFd/blob/master/CTFd/config.ini) to your liking. Configure OAUTH variables there.
+1. Use `python serve.py` or `flask run` in a terminal to drop into debug mode.
 
 You can use the auto-generated Docker images with the following command:
 

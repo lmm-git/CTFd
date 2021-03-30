@@ -51,7 +51,6 @@ class UserSchema(ma.ModelSchema):
         ],
     )
     country = field_for(Users, "country", validate=[validate_country_code])
-    password = field_for(Users, "password", required=True, allow_none=False)
     fields = Nested(
         UserFieldEntriesSchema, partial=True, many=True, attribute="field_entries"
     )
@@ -157,34 +156,6 @@ class UserSchema(ma.ModelSchema):
                     )
                 if get_config("verify_emails"):
                     current_user.verified = False
-
-    @pre_load
-    def validate_password_confirmation(self, data):
-        password = data.get("password")
-        confirm = data.get("confirm")
-        target_user = get_current_user()
-
-        if is_admin():
-            pass
-        else:
-            if password and (bool(confirm) is False):
-                raise ValidationError(
-                    "Please confirm your current password", field_names=["confirm"]
-                )
-
-            if password and confirm:
-                test = verify_password(
-                    plaintext=confirm, ciphertext=target_user.password
-                )
-                if test is True:
-                    return data
-                else:
-                    raise ValidationError(
-                        "Your previous password is incorrect", field_names=["confirm"]
-                    )
-            else:
-                data.pop("password", None)
-                data.pop("confirm", None)
 
     @pre_load
     def validate_fields(self, data):
@@ -325,7 +296,6 @@ class UserSchema(ma.ModelSchema):
             "affiliation",
             "bracket",
             "id",
-            "password",
             "fields",
             "team_id",
         ],
@@ -341,8 +311,6 @@ class UserSchema(ma.ModelSchema):
             "bracket",
             "hidden",
             "id",
-            "password",
-            "type",
             "verified",
             "fields",
             "team_id",

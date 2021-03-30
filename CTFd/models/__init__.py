@@ -265,9 +265,7 @@ class Users(db.Model):
     id = db.Column(db.String(255), primary_key=True)
     # User names are not constrained to be unique to allow for official/unofficial teams.
     name = db.Column(db.String(128))
-    password = db.Column(db.String(128))
     email = db.Column(db.String(128))
-    type = db.Column(db.String(80))
     secret = db.Column(db.String(128))
 
     # Supplementary attributes
@@ -288,16 +286,8 @@ class Users(db.Model):
 
     created = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-    __mapper_args__ = {"polymorphic_identity": "user", "polymorphic_on": type}
-
     def __init__(self, **kwargs):
         super(Users, self).__init__(**kwargs)
-
-    @validates("password")
-    def validate_password(self, key, plaintext):
-        from CTFd.utils.crypto import hash_password
-
-        return hash_password(str(plaintext))
 
     @hybrid_property
     def account_id(self):

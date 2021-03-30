@@ -6,7 +6,6 @@ UserAttrs = namedtuple(
         "id",
         "name",
         "email",
-        "type",
         "secret",
         "website",
         "affiliation",

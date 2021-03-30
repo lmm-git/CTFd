@@ -1,4 +1,4 @@
-from wtforms import BooleanField, PasswordField, SelectField, StringField
+from wtforms import BooleanField, SelectField, StringField
 from wtforms.fields.html5 import EmailField
 from wtforms.validators import InputRequired
 
@@ -115,11 +115,9 @@ class PublicUserSearchForm(BaseForm):
 class UserBaseForm(BaseForm):
     name = StringField("User Name", validators=[InputRequired()])
     email = EmailField("Email", validators=[InputRequired()])
-    password = PasswordField("Password")
     website = StringField("Website")
     affiliation = StringField("Affiliation")
     country = SelectField("Country", choices=SELECT_COUNTRIES_LIST)
-    type = SelectField("Type", choices=[("user", "User"), ("admin", "Admin")])
     verified = BooleanField("Verified")
     hidden = BooleanField("Hidden")
     banned = BooleanField("Banned")
