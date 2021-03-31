@@ -56,6 +56,18 @@ Or you can use Docker Compose with the following command from the source reposit
 
 Check out the [CTFd docs](https://docs.ctfd.io/) for [deployment options](https://docs.ctfd.io/docs/deployment/) and the [Getting Started](https://docs.ctfd.io/tutorials/getting-started/) guide
 
+## Footer
+
+You can add a footer through the admin interface. We recommend using this template (although you can enter any valid HTML):
+
+```html
+<footer class="footer">
+  <div class="container text-center">
+    Your footer text
+  </div>
+</footer>
+```
+
 ## Live Demo
 
 https://demo.ctfd.io/

@@ -53,6 +53,9 @@ def authorize():
     if not auth_well_known:
         return abort(500), 'OAUTH not configured'
 
+    if 'oauth_state' not in session:
+        return redirect(url_for('auth.login'))
+
     oauth = OAuth2Session(Config.OAUTH_CLIENT_ID, state=session['oauth_state'],
                           redirect_uri=url_for('auth.authorize', _external=True))
     token = oauth.fetch_token(auth_well_known['token_endpoint'], client_secret=Config.OAUTH_CLIENT_SECRET,
@@ -105,7 +108,10 @@ def authorize():
             db.session.close()
 
     session['sub'] = user_data['sub']
-    session['groups'] = user_data['groups']
+    if 'groups' in user_data:
+        session['groups'] = user_data['groups']
+    else:
+        session['groups'] = []
 
     if request.args.get("next") and validators.is_safe_url(
             request.args.get("next")
