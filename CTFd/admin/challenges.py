@@ -4,6 +4,7 @@ from CTFd.admin import admin
 from CTFd.models import Challenges, Flags, Solves
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.utils.decorators import admins_only
+from CTFd.utils.kubernetes import k8s_enabled
 
 
 @admin.route("/admin/challenges")
@@ -68,6 +69,7 @@ def challenges_detail(challenge_id):
         challenges=challenges,
         solves=solves,
         flags=flags,
+        kubernetes_enabled=k8s_enabled()
     )
 
 

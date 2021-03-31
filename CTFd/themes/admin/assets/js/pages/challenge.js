@@ -11,6 +11,7 @@ import Vue from "vue/dist/vue.esm.browser";
 import CommentBox from "../components/comments/CommentBox.vue";
 import FlagList from "../components/flags/FlagList.vue";
 import Requirements from "../components/requirements/Requirements.vue";
+import Kubernetes from "../components/kubernetes/Kubernetes.vue";
 import TagsList from "../components/tags/TagsList.vue";
 import ChallengeFilesList from "../components/files/ChallengeFilesList.vue";
 import HintsList from "../components/hints/HintsList.vue";
@@ -206,7 +207,7 @@ function handleChallengeOptions(event) {
   Promise.all([
     // Save flag
     new Promise(function(resolve, _reject) {
-      if (flag_params.content.length == 0) {
+      if (flag_params.content.length === 0) {
         resolve();
         return;
       }
@@ -301,7 +302,7 @@ $(() => {
             });
 
             $("#challenge-input").keyup(function(event) {
-              if (event.keyCode == 13) {
+              if (event.keyCode === 13) {
                 $("#challenge-submit").click();
               }
             });
@@ -453,6 +454,16 @@ $(() => {
     const reqsComponent = Vue.extend(Requirements);
     let vueContainer = document.createElement("div");
     document.querySelector("#prerequisite-add-form").appendChild(vueContainer);
+    new reqsComponent({
+      propsData: { challenge_id: window.CHALLENGE_ID }
+    }).$mount(vueContainer);
+  }
+
+  // Load Kubernetes component
+  if (document.querySelector("#kubernetes-edit-form")) {
+    const reqsComponent = Vue.extend(Kubernetes);
+    let vueContainer = document.createElement("div");
+    document.querySelector("#kubernetes-edit-form").appendChild(vueContainer);
     new reqsComponent({
       propsData: { challenge_id: window.CHALLENGE_ID }
     }).$mount(vueContainer);

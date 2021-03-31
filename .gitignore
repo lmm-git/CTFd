@@ -82,3 +82,9 @@ flask_profiler.sql
 client_secrets.json
 
 venv
+
+# Certificates
+*.crt
+
+# Possibly sensible settings
+CTFd/config.ini

@@ -1,7 +1,14 @@
 import datetime
 from typing import List
 
-from flask import abort, render_template, request, url_for
+from flask import (
+    abort,
+    render_template,
+    request,
+    url_for,
+    Response,
+    stream_with_context
+)
 from flask_restx import Namespace, Resource
 from sqlalchemy import func as sa_func
 from sqlalchemy.sql import and_, false, true
@@ -40,6 +47,7 @@ from CTFd.utils.decorators import (
     admins_only,
     during_ctf_time_only,
     authed_only,
+    require_kubernetes_enabled,
 )
 from CTFd.utils.decorators.visibility import (
     check_challenge_visibility,
@@ -56,6 +64,13 @@ from CTFd.utils.user import (
     get_current_user,
     get_current_user_attrs,
     is_admin,
+)
+from CTFd.utils.kubernetes import (
+    k8s_enabled,
+    challenge_k8s_state,
+    challenge_k8s_state_stream,
+    start_challenge,
+    stop_challenge,
 )
 
 challenges_namespace = Namespace(
@@ -270,6 +285,7 @@ class ChallengeList(Resource):
                     "id": challenge.id,
                     "type": challenge_type.name,
                     "name": challenge.name,
+                    "kubernetes_enabled": challenge.kubernetes_enabled if k8s_enabled() else False,
                     "value": challenge.value,
                     "solves": solve_counts.get(challenge.id, solve_count_dfl),
                     "solved_by_me": challenge.id in user_solves,
@@ -471,12 +487,16 @@ class Challenge(Resource):
         else:
             attempts = 0
 
+        if is_admin():
+            response["kubernetes_description"] = chal.kubernetes_description
+
         response["solves"] = solve_count
         response["solved_by_me"] = solved_by_user
         response["attempts"] = attempts
         response["files"] = files
         response["tags"] = tags
         response["hints"] = hints
+        response["kubernetes_enabled"] = chal.kubernetes_enabled if k8s_enabled() else False
 
         response["view"] = render_template(
             chal_class.templates["view"].lstrip("/"),
@@ -506,7 +526,6 @@ class Challenge(Resource):
     )
     def patch(self, challenge_id):
         data = request.get_json()
-
         # Load data through schema for validation but not for insertion
         schema = ChallengeSchema()
         response = schema.load(data)
@@ -531,6 +550,66 @@ class Challenge(Resource):
 
         return {"success": True}
 
+@challenges_namespace.route("/<challenge_id>/k8s")
+class ChallengeK8S(Resource):
+    @require_kubernetes_enabled
+    @authed_only
+    @during_ctf_time_only
+    def get(self, challenge_id):
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        user = get_current_user()
+        if request.headers.get('Accept') == "text/event-stream":
+            return Response(
+                stream_with_context(challenge_k8s_state_stream(user.id, challenge.id)),
+                mimetype='text/event-stream'
+            )
+        else:
+            state = challenge_k8s_state(user.id, challenge.id)
+            data = {
+                "k8s_state": {
+                    "state": state[0],
+                    "exposed": [{ "host": ip, "port": port } for (ip, port) in state[1]] if state[1] else None
+                }
+            }
+            return {"success": True, "data": data}
+
+    @require_kubernetes_enabled
+    @authed_only
+    @during_ctf_time_only
+    def post(self, challenge_id):
+        """ Start the challenge """
+        user = get_current_user()
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        if not challenge.kubernetes_description or not challenge.kubernetes_description.strip():
+            return {"success": False, "data": {
+                "message": "The challenge cannot be deployed"
+            }}, 500
+        try:
+            start_challenge(user.id, challenge)
+            return {"success": True, "data": {
+                "k8s_state": "starting"
+            }}
+        except Exception as e:
+            return {"success": False, "data": {
+                "message": str(e)
+            }}, 500
+
+    @require_kubernetes_enabled
+    @authed_only
+    @during_ctf_time_only
+    def delete(self, challenge_id):
+        """ Stop the challenge """
+        user = get_current_user()
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+        try:
+            stop_challenge(user.id, challenge.id)
+            return {"success": True, "data": {
+                "k8s_state": "stopping"
+            }}
+        except Exception as e:
+            return {"success": False, "data": {
+                "message": str(e)
+            }}, 500
 
 @challenges_namespace.route("/attempt")
 class ChallengeAttempt(Resource):

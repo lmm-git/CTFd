@@ -8,6 +8,9 @@ import $ from "jquery";
 import CTFd from "../CTFd";
 import config from "../config";
 import hljs from "highlight.js";
+import { NativeEventSource, EventSourcePolyfill } from "event-source-polyfill";
+
+const EventSource = NativeEventSource || EventSourcePolyfill;
 
 dayjs.extend(relativeTime);
 
@@ -93,6 +96,12 @@ const displayChal = chal => {
 
     // Handle modal toggling
     $("#challenge-window").on("hide.bs.modal", function(_event) {
+      // Stop listening to events.
+      const evtSource = $(this).data("eventSource");
+      if (evtSource) {
+        evtSource.close();
+      }
+
       $("#challenge-input").removeClass("wrong");
       $("#challenge-input").removeClass("correct");
       $("#incorrect-key").slideUp();
@@ -116,6 +125,167 @@ const displayChal = chal => {
         .then(markSolves);
     });
 
+
+    // Kubernetes challenge starting.
+    const showControlError = (message) => {
+      var controlErrorEl = $('#control-error').length ?
+        $('#control-error')
+        : $('<span id="control-error"></span>').appendTo('#challenge-control');
+      controlErrorEl.text(message);
+    }
+    /**
+     * Load the state of a challenge from the server.
+     *
+     * Values for `k8s_state.state` from the server are: starting, started, stopping, stopped, unknown.
+     * `k8s_state.ips` contains a list of exposed IPs and ports.
+     */
+    const loadChallengeKubernetesState = (challenge_id, handler) => {
+      CTFd.fetch(`/api/v1/challenges/${challenge_id}/k8s`)
+        .then((response) => response.json())
+        .then((response) => {
+          if (!response.success) {
+            throw new Error(response.data.message)
+          }
+
+          handler(response.data.k8s_state);
+        })
+        .catch((error) => {
+          showControlError(error);
+        })
+    }
+
+    if (challenge.data.kubernetes_enabled) {
+      // Some small utility functions for animating the buttons.
+      const disableButtonSpin = (button) => {
+        $(button).attr("disabled", "true");
+        $(button).find("i")
+          .removeAttr("class")
+          .addClass("fas")
+          .addClass("fa-circle-notch")
+          .addClass("fa-spin");
+      }
+      const enableButton = (button, fa_class) => {
+        $(button).removeAttr("disabled");
+        $(button).find("i")
+          .removeClass("fa-circle-notch")
+          .removeClass("fa-spin")
+          .addClass("fas")
+          .addClass(fa_class);
+      }
+
+      loadChallengeKubernetesState(chal.id, (k8s_state) => {
+        const startButtonHtml = "<button id=\"challenge-start\"><i class=\"fas fa-play\"></i>&nbsp;Start the challenge</button>";
+        const startButton = $(startButtonHtml).on("click", function() {
+          // Disable the button until response arrived.
+          disableButtonSpin(this);
+
+          // Send the challenge start request...
+          CTFd.fetch(`/api/v1/challenges/${chal.id}/k8s`, {
+            method: "POST",
+          })
+            .then((response) => response.json())
+            .then((response) => {
+              // ...and check whether it was successfull.
+              if (!response.success) {
+                throw Error(response.data.message);
+              }
+            })
+            .catch((error) => {
+              enableButton(this, "fa-play")
+              showControlError(`There was an error starting the challenge: ${error}`);
+            });
+        });
+
+        const stopButtonHtml = "<button id=\"challenge-stop\"><i class=\"fas fa-stop\"></i>&nbsp;Stop the challenge</button>";
+        const stopButton = $(stopButtonHtml).on("click", function() {
+          // Disable the button until response arrived.
+          disableButtonSpin(this);
+
+          // Send the challenge stop request...
+          CTFd.fetch(`/api/v1/challenges/${chal.id}/k8s`, {
+            method: "DELETE",
+          })
+            .then((response) => response.json())
+            .then((response) => {
+              // ...and check whether it was successfull.
+              if (!response.success) {
+                throw Error(response.data.message);
+              }
+            })
+            .catch((error) => {
+              enableButton(this, "fa-stop");
+              showControlError(`There was an error starting the challenge: ${error}`);
+            });
+        });
+
+        const applyState = (k8s_state) => {
+          console.log(k8s_state);
+          // Apply the state to the buttons.
+          switch (k8s_state.state) {
+            case "stopped":
+              enableButton(startButton, "fa-play");
+              startButton.show();
+              stopButton.hide();
+              $("#connection-overview").remove();
+              break;
+            case "starting":
+              disableButtonSpin(startButton);
+              startButton.show();
+              stopButton.hide();
+              $("#connection-overview").remove();
+              break;
+            case "started":
+              enableButton(stopButton, "fa-stop");
+              startButton.hide();
+              stopButton.show();
+              if (k8s_state.exposed) {
+                // Show exposed IPs and ports but remove old list beforehand.
+                $("#connection-overview").find("ul").remove();
+                const hostPortList = $("<ul></ul>");
+                k8s_state.exposed.forEach(({host, port}) => {
+                  $("<li></li>").text(`${host}:${port}`).appendTo(hostPortList);
+                });
+                const connectionOverview = $("<div id=\"connection-overview\"><br /><span>Your challenge is reachable on:</span></div>");
+                hostPortList.appendTo(connectionOverview);
+                connectionOverview.appendTo("#challenge-control");
+              }
+              break;
+            case "stopping":
+              startButton.hide();
+              disableButtonSpin(stopButton);
+              stopButton.show();
+              $("#connection-overview").remove();
+              break;
+            default:
+              throw "Unknown state";
+          }
+        }
+
+        // Append the buttons.
+        stopButton.prependTo("#challenge-control");
+        startButton.prependTo("#challenge-control");
+
+        applyState(k8s_state);
+        
+        // Listen to update events.
+        const evtSource = new EventSource(`/api/v1/challenges/${chal.id}/k8s`);
+        $("#challenge-window").data("eventSource", evtSource);
+        evtSource.onmessage = function(event) {
+          try {
+            k8sEvent = JSON.parse(event.data)
+            console.log(k8sEvent)
+            if (k8sEvent.state) {
+              applyState(k8sEvent);
+            } else {
+              throw Error(`Invalid state format received from k8s status: ${JSON.stringify(event.data)}`);
+            }
+          } catch (error) {
+            console.error(error);
+          }
+        }
+        
+      });
+    }
     $("#challenge-input").keyup(event => {
       if (event.keyCode == 13) {
         $("#challenge-submit").click();
