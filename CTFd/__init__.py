@@ -27,7 +27,6 @@ from CTFd.utils.initialization import (
 )
 from CTFd.utils.migrations import create_database, migrations, stamp_latest_revision
 from CTFd.utils.sessions import CachingSessionInterface
-from CTFd.utils.updates import update_check
 
 __version__ = "3.3.0"
 __channel__ = "oss"
@@ -268,8 +267,6 @@ def create_app(config="CTFd.config.Config"):
 
         if not utils.get_config("ctf_theme"):
             utils.set_config("ctf_theme", DEFAULT_THEME)
-
-        update_check(force=True)
 
         # Import auth before anything else to allow access to auth tokens in preprocessors
         from CTFd.auth import auth
