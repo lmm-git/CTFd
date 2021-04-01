@@ -568,7 +568,7 @@ class ChallengeK8S(Resource):
             data = {
                 "k8s_state": {
                     "state": state[0],
-                    "exposed": [{ "host": ip, "port": port } for (ip, port) in state[1]] if state[1] else None
+                    "exposed": [{"host": ip, "port": port} for (ip, port) in state[1]] if state[1] else None
                 }
             }
             return {"success": True, "data": data}

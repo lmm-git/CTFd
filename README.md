@@ -68,9 +68,17 @@ You can add a footer through the admin interface. We recommend using this templa
 </footer>
 ```
 
-## Live Demo
+## Kubernetes
 
-https://demo.ctfd.io/
+This version of CTFd features a Kubernetes integration. To enable these, please activate it via your environment variables.
+
+Available variables are listed in the [central config.ini](CTFd/config.ini) in section `k8s`.
+
+To create the needed cluster roles, we have prepared [an example](CTFd/utils/kubernetes/init.yaml).
+
+With the Kubernetes integration, every participant is able to spawn it's own environment to solve a challenge. You can configure Kubernetes yamls on a per-challenge basis or via global configurations in the admin configuration section.
+
+To enable pulling from a private registry, please provide your docker secret to the settings in the admin panel as well.
 
 ## Support
 

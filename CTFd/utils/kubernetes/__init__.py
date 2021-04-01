@@ -6,7 +6,7 @@ import yaml
 
 from typing import List, Tuple
 
-from CTFd.utils import get_app_config
+from CTFd.utils import get_app_config, get_config
 from kubernetes import client
 from kubernetes.client.rest import ApiException
 from kubernetes.utils import FailToCreateError
@@ -128,7 +128,7 @@ def create_service_account_token(k8s_client, namespace) -> str:
     rbac_k8s_client = client.RbacAuthorizationV1Api(k8s_client)
 
     # Create a new Service account
-    service_account_body = {"metadata": {"name": "manager"} }
+    service_account_body = {"metadata": {"name": "manager"}}
     core_k8s_client.create_namespaced_service_account(namespace, service_account_body)
 
     # Give a role
@@ -189,8 +189,23 @@ def create_service_account_token(k8s_client, namespace) -> str:
     secret = core_k8s_client.read_namespaced_secret(secret.name, namespace)
     if not secret.data["token"]:
         raise Exception("Could not retrieve token for service account, no token was found")
-    token = base64.decodestring(secret.data["token"].encode("ascii")).decode("ascii")
+    token = base64.decodebytes(secret.data["token"].encode("utf-8")).decode("utf-8")
     return token
+
+def apply_k8s_yml(yaml_content, k8s_manager_client, namespace):
+    yml_document_all = yaml.safe_load_all(yaml_content)
+    yml_document_all = list(yml_document_all)
+
+    failures = []
+    for yml_document in yml_document_all:
+        if not yml_document:
+            continue
+        try:
+            created = create_from_dict(k8s_manager_client, yml_document, namespace=namespace)
+        except FailToCreateError as failure:
+            failures.extend(failure.api_exceptions)
+    if failures:
+        raise FailToCreateError(failures)
 
 def start_challenge(user_id, challenge):
     """ Starts a challenge by creating a new namespace for the challenge - user combination """
@@ -220,25 +235,61 @@ def start_challenge(user_id, challenge):
         stop_challenge(user_id, challenge.id)
         raise Exception("Could not create service account: {}".format(exc)) from exc
 
+    # Create default pull secret
+    try:
+        default_pull_secret = get_config('kubernetes_pull_secret', None)
+        if default_pull_secret:
+            core_k8s_client.create_namespaced_secret(namespace, {
+                'metadata': {
+                    'name': 'ctfd-pull-secret',
+                },
+                'type': 'kubernetes.io/dockerconfigjson',
+                'data': {
+                    '.dockerconfigjson': base64.encodebytes(default_pull_secret.encode('utf-8')).decode('utf-8')
+                }
+            })
+    except ApiException as exc:
+        stop_challenge(user_id, challenge.id)
+        print(f"[k8s] Could not create default pull secret: {exc}")
+        raise Exception("Could not create default pull secret: <error hidden>") from exc
+
+    print('---------T0')
+
+    # Create flag secret
+    try:
+        flag_data = {}
+        for idx, flag in enumerate(challenge.flags):
+            flag_data[f'flag_{idx}'] = base64.encodebytes(str(flag.content).strip().encode('utf-8')).decode(
+                'utf-8').strip()
+
+        core_k8s_client.create_namespaced_secret(namespace, {
+            'metadata': {
+                'name': 'ctfd-flags',
+            },
+            'type': 'Opaque',
+            'data': flag_data,
+        })
+
+    except ApiException as exc:
+        stop_challenge(user_id, challenge.id)
+        #print(f"[k8s] Could not create flag secret: {exc}")
+        raise Exception("Could not create challenge flag secret: <error hidden>{}".format(exc)) from exc
+
+    # Create default k8s challenge namespace configurations
+    try:
+        global_challenge_namespace_config = get_config('kubernetes_default_namespace_config', None)
+        if global_challenge_namespace_config:
+            apply_k8s_yml(global_challenge_namespace_config, k8s_manager_client, namespace)
+    except FailToCreateError as e:
+        stop_challenge(user_id, challenge.id)
+        raise Exception("Challenge could not be created, failed deploying global configs: {}.".format(e)) from e
+
     # Create the deployments.
     try:
         if not (challenge.kubernetes_description and challenge.kubernetes_description.strip()):
             raise Exception("No deployment specified in challenge.")
-        yml_document_all = yaml.safe_load_all(challenge.kubernetes_description.strip())
-        yml_document_all = list(yml_document_all)
 
-        failures = []
-        k8s_objects = []
-        for yml_document in yml_document_all:
-            if not yml_document:
-                continue
-            try:
-                created = create_from_dict(k8s_manager_client, yml_document, namespace=namespace)
-                k8s_objects.append(created)
-            except FailToCreateError as failure:
-                failures.extend(failure.api_exceptions)
-        if failures:
-            raise FailToCreateError(failures)
+        apply_k8s_yml(challenge.kubernetes_description.strip(), k8s_manager_client, namespace)
     except FailToCreateError as e:
         stop_challenge(user_id, challenge.id)
         raise Exception("Challenge could not be created: {}.".format(e)) from e
