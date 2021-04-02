@@ -139,12 +139,12 @@ def create_service_account_token(k8s_client, namespace) -> str:
         rules=[
             client.V1PolicyRule(
                 api_groups=[""],
-                resources=["services"],
+                resources=["services", "pods"],
                 verbs=["list", "get", "watch", "create", "update", "patch", "delete"]
             ),
             client.V1PolicyRule(
                 api_groups=["apps"],
-                resources=["deployments"],
+                resources=["deployments", "replicasets"],
                 verbs=["list", "get", "watch", "create", "update", "patch", "delete"]
             ),
             client.V1PolicyRule(
