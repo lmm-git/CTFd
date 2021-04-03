@@ -253,8 +253,6 @@ def start_challenge(user_id, challenge):
         print(f"[k8s] Could not create default pull secret: {exc}")
         raise Exception("Could not create default pull secret: <error hidden>") from exc
 
-    print('---------T0')
-
     # Create flag secret
     try:
         flag_data = {}

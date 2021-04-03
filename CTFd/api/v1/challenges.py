@@ -753,6 +753,21 @@ class ChallengeAttempt(Resource):
                     challenge_id=challenge_id,
                     kpm=kpm,
                 )
+
+                if challenge.kubernetes_enabled:
+                    challenge_state = challenge_k8s_state(user.id, challenge.id)[0]
+                    if challenge_state == 'starting' or challenge_state == 'started':
+                        try:
+                            stop_challenge(user.id, challenge.id)
+                        except Exception as ex:
+                            log(
+                                "kubernetes",
+                                "[{date}] {name} failed to stop challenge {challenge_id}: {exception}",
+                                name=user.name,
+                                challenge_id=challenge_id,
+                                exception=ex,
+                            )
+
                 return {
                     "success": True,
                     "data": {"status": "correct", "message": message},
