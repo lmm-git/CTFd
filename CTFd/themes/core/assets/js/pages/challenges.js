@@ -42,6 +42,39 @@ const loadChalByName = name => {
   displayChal(chal);
 };
 
+ // Kubernetes challenge starting.
+ const showControlError = (message) => {
+  var controlErrorEl = $('#control-error').length ?
+    $('#control-error')
+    : $('<span id="control-error"></span>').appendTo('#challenge-control');
+  controlErrorEl.text(message);
+  return controlErrorEl;
+}
+
+const clearControlError = () => {
+  showControlError("");
+}
+/**
+ * Load the state of a challenge from the server.
+ *
+ * Values for `k8s_state.state` from the server are: starting, started, stopping, stopped, unknown.
+ * `k8s_state.ips` contains a list of exposed IPs and ports.
+ */
+const loadChallengeKubernetesState = (challenge_id, handler) => {
+  CTFd.fetch(`/api/v1/challenges/${challenge_id}/k8s`)
+    .then((response) => response.json())
+    .then((response) => {
+      if (!response.success) {
+        throw new Error(response.data.message)
+      }
+
+      handler(response.data.k8s_state);
+    })
+    .catch((error) => {
+      showControlError(error);
+    })
+}
+
 const displayChal = chal => {
   return Promise.all([
     CTFd.api.get_challenge({ challengeId: chal.id }),
@@ -122,42 +155,9 @@ const displayChal = chal => {
         .submit()
         .then(renderSubmissionResponse)
         .then(loadChals)
-        .then(markSolves);
+        .then(markSolves)
+        .then(markRunningChallenges);
     });
-
-
-    // Kubernetes challenge starting.
-    const showControlError = (message) => {
-      var controlErrorEl = $('#control-error').length ?
-        $('#control-error')
-        : $('<span id="control-error"></span>').appendTo('#challenge-control');
-      controlErrorEl.text(message);
-      return controlErrorEl;
-    }
-
-    const clearControlError = () => {
-      showControlError("");
-    }
-    /**
-     * Load the state of a challenge from the server.
-     *
-     * Values for `k8s_state.state` from the server are: starting, started, stopping, stopped, unknown.
-     * `k8s_state.ips` contains a list of exposed IPs and ports.
-     */
-    const loadChallengeKubernetesState = (challenge_id, handler) => {
-      CTFd.fetch(`/api/v1/challenges/${challenge_id}/k8s`)
-        .then((response) => response.json())
-        .then((response) => {
-          if (!response.success) {
-            throw new Error(response.data.message)
-          }
-
-          handler(response.data.k8s_state);
-        })
-        .catch((error) => {
-          showControlError(error);
-        })
-    }
 
     if (challenge.data.kubernetes_enabled) {
       // Some small utility functions for animating the buttons.
@@ -265,6 +265,7 @@ const displayChal = chal => {
             default:
               throw "Unknown state";
           }
+          markRunningChallenges();
         }
 
         // Append the buttons.
@@ -435,7 +436,9 @@ function getSolves(id) {
 }
 
 function loadChals() {
-  return CTFd.api.get_challenge_list().then(function(response) {
+  return CTFd.api.get_challenge_list()
+    .then(function(response) {
+
     const categories = [];
     const $challenges_board = $("#challenges-board");
     challenges = response.data;
@@ -511,8 +514,28 @@ function loadChals() {
   });
 }
 
+function markRunningChallenges() {
+   // Load the k8 running states.
+   challenges.forEach((challenge) => {
+    loadChallengeKubernetesState(challenge.id, (state) => {
+      const btn = $(`button[value="${challenge.id}"]`);
+      btn.removeClass("running-challenge");
+      btn.removeClass("stopping-challenge");
+      btn.find("i.corner-button-play").remove();
+      btn.find("i.corner-button-stop").remove();
+      if (state.state === "started" || state.state === "starting") {
+        btn.addClass("running-challenge");
+        btn.append("<i class='fas fa-play corner-button-play'></i>");
+      } else if (state.state === "stopping") {
+        btn.addClass("stopping-challenge");
+        btn.append("<i class='fas fa-stop corner-button-stop'></i>");
+      }
+    })
+  })
+}
+
 function update() {
-  return loadChals().then(markSolves);
+  return loadChals().then(markSolves).then(markRunningChallenges);
 }
 
 $(() => {

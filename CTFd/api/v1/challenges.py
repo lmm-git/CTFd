@@ -587,7 +587,7 @@ class ChallengeK8S(Resource):
             }}, 500
 
         max_challenges = get_app_config('KUBERNETES_MAX_RUNNING_CHALLENGES_PER_USER', 4)
-        if number_running_challenges_for(user.id) > max_challenges:
+        if number_running_challenges_for(user.id) >= max_challenges:
             return {"success": False, "data": {
                 "message": "Please stop some other challenges. A maximum of {} running challenges is allowed.".format(max_challenges)
             }}, 400
