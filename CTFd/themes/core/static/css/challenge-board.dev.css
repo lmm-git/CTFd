@@ -41,9 +41,14 @@
   display: block;
   font-size: small; }
 
-#challenge-control #challenge-start i {
-  color: #37d63e; }
-
-#challenge-control #challenge-stop i {
-  color: #db2121; }
+#challenge-control {
+  margin-bottom: 10px;
+  width: 100%; }
+  #challenge-control button {
+    margin: 0 auto;
+    display: block; }
+  #challenge-control #challenge-start i {
+    color: #37d63e; }
+  #challenge-control #challenge-stop i {
+    color: #db2121; }
 

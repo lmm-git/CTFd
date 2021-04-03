@@ -54,6 +54,12 @@ $error-red: rgb(219, 33, 33);
 }
 
 #challenge-control {
+  margin-bottom: 10px;
+  width: 100%;
+  button {
+    margin: 0 auto;
+    display: block;
+  }
   #challenge-start {
     i {
       color: #37d63e;
