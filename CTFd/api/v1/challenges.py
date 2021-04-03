@@ -35,7 +35,7 @@ from CTFd.schemas.challenges import ChallengeSchema
 from CTFd.schemas.flags import FlagSchema
 from CTFd.schemas.hints import HintSchema
 from CTFd.schemas.tags import TagSchema
-from CTFd.utils import config, get_config
+from CTFd.utils import config, get_config, get_app_config
 from CTFd.utils import user as current_user
 from CTFd.utils.config.visibility import (
     accounts_visible,
@@ -71,6 +71,7 @@ from CTFd.utils.kubernetes import (
     challenge_k8s_state_stream,
     start_challenge,
     stop_challenge,
+    number_running_challenges_for,
 )
 
 challenges_namespace = Namespace(
@@ -580,10 +581,17 @@ class ChallengeK8S(Resource):
         """ Start the challenge """
         user = get_current_user()
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
-        if not challenge.kubernetes_description or not challenge.kubernetes_description.strip():
+        if not challenge.kubernetes_enabled or not challenge.kubernetes_description or not challenge.kubernetes_description.strip():
             return {"success": False, "data": {
                 "message": "The challenge cannot be deployed"
             }}, 500
+
+        max_challenges = get_app_config('KUBERNETES_MAX_RUNNING_CHALLENGES_PER_USER', 4)
+        if number_running_challenges_for(user.id) > max_challenges:
+            return {"success": False, "data": {
+                "message": "Please stop some other challenges. A maximum of {} running challenges is allowed.".format(max_challenges)
+            }}, 400
+
         try:
             start_challenge(user.id, challenge)
             return {"success": True, "data": {

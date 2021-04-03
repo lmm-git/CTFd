@@ -47,12 +47,6 @@
 
 $error-red: rgb(219, 33, 33);
 
-#control-error {
-  color: $error-red;
-  display: block;
-  font-size: small;
-}
-
 #challenge-control {
   margin-bottom: 10px;
   width: 100%;
@@ -69,5 +63,12 @@ $error-red: rgb(219, 33, 33);
     i {
       color: $error-red;
     }
+  }
+
+  #control-error {
+    color: $error-red;
+    display: block;
+    font-size: medium;
+    margin-top: 6px;
   }
 }

@@ -34,9 +34,12 @@ def create_k8s_client(token=None) -> client.ApiClient:
 
     return client.ApiClient(configuration)
 
-def get_namespace(user_id, challenge_id) -> str:
+def _user_prefix(user_id):
     fixed_user_id = re.sub(r'[^A-Za-z0-9]+', '', str(user_id))
-    return 'ctfd-challenges-{}-{}'.format(fixed_user_id, str(challenge_id))
+    return 'ctfd-challenges-{}'.format(fixed_user_id)
+
+def _get_namespace(user_id, challenge_id) -> str:
+    return '{}-{}'.format(_user_prefix(user_id), str(challenge_id))
 
 def _check_endpoint_ready(endpoint) -> bool:
     if not endpoint.subsets:
@@ -77,7 +80,7 @@ def challenge_k8s_state(user_id, challenge_id) -> (str, List[Tuple[str, int]]):
     k8s_client = create_k8s_client()
     core_k8s_client = client.CoreV1Api(k8s_client)
 
-    namespace = get_namespace(user_id, challenge_id)
+    namespace = _get_namespace(user_id, challenge_id)
     existing_namespaces = core_k8s_client.list_namespace()
     for ns in existing_namespaces.items:
         if ns.metadata.name == namespace:
@@ -99,7 +102,7 @@ def challenge_k8s_state_stream(user_id, challenge_id):
     k8s_client = create_k8s_client()
     core_k8s_client = client.CoreV1Api(k8s_client)
 
-    namespace = get_namespace(user_id, challenge_id)
+    namespace = _get_namespace(user_id, challenge_id)
 
     watch = Watch()
     for event in watch.stream(func=core_k8s_client.list_namespace, field_selector="metadata.name={}".format(namespace)):
@@ -122,6 +125,15 @@ def challenge_k8s_state_stream(user_id, challenge_id):
                 yield "data: {}\n\n".format(json.dumps(state))
                 watch.stop()
                 return
+
+def number_running_challenges_for(user_id) -> int:
+    """Determines how many challenges are currently running for a specific user"""
+    k8s_client = create_k8s_client()
+    core_k8s_client = client.CoreV1Api(k8s_client)
+
+    prefix = _user_prefix(user_id)
+    namespaces = core_k8s_client.list_namespace()
+    return sum([1 if ns.metadata.name.startswith(prefix) else 0 for ns in namespaces.items])
 
 def create_service_account_token(k8s_client, namespace) -> str:
     core_k8s_client = client.CoreV1Api(k8s_client)
@@ -214,7 +226,7 @@ def start_challenge(user_id, challenge):
 
     # Create the namespace.
     try:
-        namespace = get_namespace(user_id, challenge.id)
+        namespace = _get_namespace(user_id, challenge.id)
         new_ns = client.V1Namespace(
             metadata=client.V1ObjectMeta(
                 name=namespace
@@ -305,7 +317,7 @@ def stop_challenge(user_id, challenge_id):
     core_k8s_client = client.CoreV1Api(k8s_client)
 
     # Deleting the namespace should be enough.
-    namespace = get_namespace(user_id, challenge_id)
+    namespace = _get_namespace(user_id, challenge_id)
     try:
         core_k8s_client.delete_namespace(namespace)
     except ApiException as e:

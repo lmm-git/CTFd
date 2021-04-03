@@ -132,6 +132,11 @@ const displayChal = chal => {
         $('#control-error')
         : $('<span id="control-error"></span>').appendTo('#challenge-control');
       controlErrorEl.text(message);
+      return controlErrorEl;
+    }
+
+    const clearControlError = () => {
+      showControlError("");
     }
     /**
      * Load the state of a challenge from the server.
@@ -176,6 +181,7 @@ const displayChal = chal => {
       loadChallengeKubernetesState(chal.id, (k8s_state) => {
         const startButtonHtml = "<button id=\"challenge-start\"><i class=\"fas fa-play\"></i>&nbsp;Start the challenge</button>";
         const startButton = $(startButtonHtml).on("click", function() {
+          clearControlError();
           // Disable the button until response arrived.
           disableButtonSpin(this);
 
@@ -198,6 +204,7 @@ const displayChal = chal => {
 
         const stopButtonHtml = "<button id=\"challenge-stop\"><i class=\"fas fa-stop\"></i>&nbsp;Stop the challenge</button>";
         const stopButton = $(stopButtonHtml).on("click", function() {
+          clearControlError();
           // Disable the button until response arrived.
           disableButtonSpin(this);
 
@@ -219,7 +226,6 @@ const displayChal = chal => {
         });
 
         const applyState = (k8s_state) => {
-          console.log(k8s_state);
           // Apply the state to the buttons.
           switch (k8s_state.state) {
             case "stopped":
@@ -273,7 +279,6 @@ const displayChal = chal => {
         evtSource.onmessage = function(event) {
           try {
             k8sEvent = JSON.parse(event.data)
-            console.log(k8sEvent)
             if (k8sEvent.state) {
               applyState(k8sEvent);
             } else {
