@@ -42,7 +42,7 @@ CTFd is a Capture The Flag framework focusing on ease of use and customizability
 
 1. Install dependencies: `pip install -r requirements.txt`
    1. You can also use the `prepare.sh` script to install system dependencies using apt.
-1. Set up a OAUTH provider (like Keycloak: Confidential OIDC client, without Direct Grants should work fine. Admins should have `admin` in `group` claim list).
+1. Set up a OAUTH provider (like Keycloak: Confidential OIDC client, without Direct Grants should work fine. Admins should have `admin` in `group` claim list, if you want to auto-hide a user, the user should have `hidden` in `group` claim list).
 1. Modify [CTFd/config.ini](https://github.com/CTFd/CTFd/blob/master/CTFd/config.ini) to your liking. Configure OAUTH variables there.
 1. Use `python serve.py` or `flask run` in a terminal to drop into debug mode.
 

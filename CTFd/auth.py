@@ -113,6 +113,11 @@ def authorize():
     else:
         session['groups'] = []
 
+    # Hide users automatically
+    if 'hidden' in session['groups']:
+        user.hidden = True
+        db.session.commit()
+
     if request.args.get("next") and validators.is_safe_url(
             request.args.get("next")
     ):
