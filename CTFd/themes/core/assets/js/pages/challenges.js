@@ -520,7 +520,7 @@ function loadChals() {
 function markRunningChallenges() {
   // Load the k8 running states.
   challenges.forEach((challenge) => {
-    if (!challenge.k8s_enabled) {
+    if (!challenge.kubernetes_enabled) {
       return;
     }
     const state = challenge.k8s_state

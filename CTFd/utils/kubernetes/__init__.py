@@ -4,7 +4,7 @@ import re
 import os
 import yaml
 
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 from CTFd.utils import get_app_config, get_config
 from kubernetes import client
@@ -97,6 +97,31 @@ def challenge_k8s_state(user_id, challenge_id) -> (str, List[Tuple[str, int]]):
             else:
                 return ("unknown", None)
     return ("stopped", None)
+
+def challenges_k8s_states(user_id):
+    """Retrieves the current state of the challenges including all exposed IPs and ports"""
+    prefix = "{}-".format(_user_prefix(user_id))
+    k8s_client = create_k8s_client()
+    core_k8s_client = client.CoreV1Api(k8s_client)
+
+    ret_val = {}
+    existing_namespaces = core_k8s_client.list_namespace()
+    for ns in existing_namespaces.items:
+        if ns.metadata.name.startswith(prefix):
+            challenge_id = ns.metadata.name.replace(prefix, "")
+            if ns.status.phase == "Terminating":
+                ret_val[challenge_id] = ("stopping", None)
+            elif ns.status.phase == "Active":
+                exposed = _get_exposed_services(core_k8s_client, ns.metadata.name)
+                all_services_ready = all(map(lambda tpl: tpl[2], exposed))
+                if not all_services_ready:
+                    ret_val[challenge_id] = ("starting", None)
+                else:
+                    ip_ports = list(map(lambda expose: expose[:-1], exposed))
+                    ret_val[challenge_id] = ("started", ip_ports)
+            else:
+                ret_val[challenge_id] = ("unknown", None)
+    return ret_val
 
 def challenge_k8s_state_stream(user_id, challenge_id):
     k8s_client = create_k8s_client()
