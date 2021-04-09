@@ -248,6 +248,8 @@ class ChallengeList(Resource):
         # will be JSONified back to the client
         response = []
         tag_schema = TagSchema(view="user", many=True)
+        k8s_en = k8s_enabled()
+        user = get_current_user()
         for challenge in chal_q:
             if challenge.requirements:
                 requirements = challenge.requirements.get("prerequisites", [])
@@ -281,6 +283,12 @@ class ChallengeList(Resource):
                 continue
 
             # Challenge passes all checks, add it to response
+            if k8s_en:
+                state = challenge_k8s_state(user.id, challenge.id)
+                k8s_state = {
+                    "state": state[0],
+                    "exposed": [{"host": ip, "port": port} for (ip, port) in state[1]] if state[1] else None
+                }
             response.append(
                 {
                     "id": challenge.id,
@@ -294,6 +302,8 @@ class ChallengeList(Resource):
                     "tags": tag_schema.dump(challenge.tags).data,
                     "template": challenge_type.templates["view"],
                     "script": challenge_type.scripts["view"],
+                    "k8s_enabled": challenge.kubernetes_enabled if k8s_en else False,
+                    "k8s_state": k8s_state if k8s_en else False,
                 }
             )
 

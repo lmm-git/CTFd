@@ -60,7 +60,7 @@ const clearControlError = () => {
  * Values for `k8s_state.state` from the server are: starting, started, stopping, stopped, unknown.
  * `k8s_state.ips` contains a list of exposed IPs and ports.
  */
-const loadChallengeKubernetesState = (challenge_id, handler) => {
+const c = (challenge_id, handler) => {
   CTFd.fetch(`/api/v1/challenges/${challenge_id}/k8s`)
     .then((response) => response.json())
     .then((response) => {
@@ -178,7 +178,7 @@ const displayChal = chal => {
           .addClass(fa_class);
       }
 
-      loadChallengeKubernetesState(chal.id, (k8s_state) => {
+      c(chal.id, (k8s_state) => {
         const startButtonHtml = "<button id=\"challenge-start\"><i class=\"fas fa-play\"></i>&nbsp;Start the challenge</button>";
         const startButton = $(startButtonHtml).on("click", function() {
           clearControlError();
@@ -227,6 +227,9 @@ const displayChal = chal => {
 
         const applyState = (k8s_state) => {
           // Apply the state to the buttons.
+          challenges.filter((challenge) => challenge.id === chal.id).forEach((challenge) => {
+            challenge.k8s_state = k8s_state;
+          });
           switch (k8s_state.state) {
             case "stopped":
               enableButton(startButton, "fa-play");
@@ -515,23 +518,25 @@ function loadChals() {
 }
 
 function markRunningChallenges() {
-   // Load the k8 running states.
-   challenges.forEach((challenge) => {
-    loadChallengeKubernetesState(challenge.id, (state) => {
-      const btn = $(`button[value="${challenge.id}"]`);
-      btn.removeClass("running-challenge");
-      btn.removeClass("stopping-challenge");
-      btn.find("i.corner-button-play").remove();
-      btn.find("i.corner-button-stop").remove();
-      if (state.state === "started" || state.state === "starting") {
-        btn.addClass("running-challenge");
-        btn.append("<i class='fas fa-play corner-button-play'></i>");
-      } else if (state.state === "stopping") {
-        btn.addClass("stopping-challenge");
-        btn.append("<i class='fas fa-stop corner-button-stop'></i>");
-      }
-    })
-  })
+  // Load the k8 running states.
+  challenges.forEach((challenge) => {
+    if (!challenge.k8s_enabled) {
+      return;
+    }
+    const state = challenge.k8s_state
+    const btn = $(`button[value="${challenge.id}"]`);
+    btn.removeClass("running-challenge");
+    btn.removeClass("stopping-challenge");
+    btn.find("i.corner-button-play").remove();
+    btn.find("i.corner-button-stop").remove();
+    if (state.state === "started" || state.state === "starting") {
+      btn.addClass("running-challenge");
+      btn.append("<i class='fas fa-play corner-button-play'></i>");
+    } else if (state.state === "stopping") {
+      btn.addClass("stopping-challenge");
+      btn.append("<i class='fas fa-stop corner-button-stop'></i>");
+    }
+  });
 }
 
 function update() {
