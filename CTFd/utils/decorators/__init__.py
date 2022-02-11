@@ -5,9 +5,10 @@ from flask import abort, jsonify, redirect, request, url_for
 from CTFd.cache import cache
 from CTFd.utils import config, get_config, get_app_config
 from CTFd.utils import user as current_user
+from CTFd.utils.config import is_teams_mode
 from CTFd.utils.dates import ctf_ended, ctf_started, ctftime, view_after_ctf
 from CTFd.utils.modes import TEAMS_MODE
-from CTFd.utils.user import authed, get_current_team, is_admin
+from CTFd.utils.user import authed, get_current_team, get_current_user, is_admin
 from CTFd.utils.kubernetes import k8s_enabled
 
 
@@ -123,7 +124,7 @@ def admins_only(f):
 def require_team(f):
     @functools.wraps(f)
     def require_team_wrapper(*args, **kwargs):
-        if get_config("user_mode") == TEAMS_MODE:
+        if is_teams_mode():
             team = get_current_team()
             if team is None:
                 if request.content_type == "application/json":
@@ -175,3 +176,38 @@ def require_kubernetes_enabled(f):
         return f(*args, **kwargs)
 
     return require_kubernetes_enabled_wrapper
+
+def require_complete_profile(f):
+    from CTFd.utils.helpers import info_for
+
+    @functools.wraps(f)
+    def _require_complete_profile(*args, **kwargs):
+        if authed():
+            if is_admin():
+                return f(*args, **kwargs)
+            else:
+                user = get_current_user()
+
+                if user.filled_all_required_fields is False:
+                    info_for(
+                        "views.settings",
+                        "Please fill out all required profile fields before continuing",
+                    )
+                    return redirect(url_for("views.settings"))
+
+                if is_teams_mode():
+                    team = get_current_team()
+
+                    if team and team.filled_all_required_fields is False:
+                        # This is an abort because it's difficult for us to flash information on the teams page
+                        return abort(
+                            403,
+                            description="Please fill in all required team profile fields",
+                        )
+
+                return f(*args, **kwargs)
+        else:
+            # Fallback to whatever behavior the route defaults to
+            return f(*args, **kwargs)
+
+    return _require_complete_profile

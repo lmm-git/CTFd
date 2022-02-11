@@ -4,6 +4,7 @@ from flask import Blueprint, abort
 from flask import current_app as app
 from flask import redirect, render_template, request, send_file, session, url_for
 from flask.helpers import safe_join
+from jinja2.exceptions import TemplateNotFound
 from sqlalchemy.exc import IntegrityError
 
 from CTFd.cache import cache
@@ -26,7 +27,9 @@ from CTFd.models import (
 )
 from CTFd.utils import config, get_config, set_config
 from CTFd.utils import user as current_user
-from CTFd.utils.config.pages import build_html, get_page
+from CTFd.utils import validators
+from CTFd.utils.config import is_setup
+from CTFd.utils.config.pages import build_markdown, get_page
 from CTFd.utils.config.visibility import challenges_visible
 from CTFd.utils.dates import ctf_ended, ctftime, view_after_ctf
 from CTFd.utils.decorators import authed_only, admins_only
@@ -214,7 +217,12 @@ def setup():
                 cache.clear()
 
             return redirect(url_for("views.static_html"))
-        return render_template("setup.html", state=serialize(generate_nonce()))
+        try:
+            return render_template("setup.html", state=serialize(generate_nonce()))
+        except TemplateNotFound:
+            # Set theme to default and try again
+            set_config("ctf_theme", DEFAULT_THEME)
+            return render_template("setup.html", state=serialize(generate_nonce()))
     return redirect(url_for("views.static_html"))
 
 
@@ -228,6 +236,7 @@ def notifications():
 @authed_only
 def settings():
     infos = get_infos()
+    errors = get_errors()
 
     user = get_current_user()
     name = user.name
@@ -260,6 +269,7 @@ def settings():
         tokens=tokens,
         prevent_name_change=prevent_name_change,
         infos=infos,
+        errors=errors,
     )
 
 
@@ -278,7 +288,7 @@ def static_html(route):
         if page.auth_required and authed() is False:
             return redirect(url_for("auth.login", next=request.full_path))
 
-        return render_template("page.html", content=page.content)
+        return render_template("page.html", content=page.html, title=page.title)
 
 
 @views.route("/tos")
@@ -288,7 +298,7 @@ def tos():
     if tos_url:
         return redirect(tos_url)
     elif tos_text:
-        return render_template("page.html", content=build_html(tos_text))
+        return render_template("page.html", content=build_markdown(tos_text))
     else:
         abort(404)
 
@@ -300,7 +310,7 @@ def privacy():
     if privacy_url:
         return redirect(privacy_url)
     elif privacy_text:
-        return render_template("page.html", content=build_html(privacy_text))
+        return render_template("page.html", content=build_markdown(privacy_text))
     else:
         abort(404)
 

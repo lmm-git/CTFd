@@ -12,6 +12,7 @@ import CommentBox from "../components/comments/CommentBox.vue";
 import FlagList from "../components/flags/FlagList.vue";
 import Requirements from "../components/requirements/Requirements.vue";
 import Kubernetes from "../components/kubernetes/Kubernetes.vue";
+import TopicsList from "../components/topics/TopicsList.vue";
 import TagsList from "../components/tags/TagsList.vue";
 import ChallengeFilesList from "../components/files/ChallengeFilesList.vue";
 import HintsList from "../components/hints/HintsList.vue";
@@ -326,6 +327,10 @@ $(() => {
     );
   });
 
+  $(".comments-challenge").click(function(_event) {
+    $("#challenge-comments-window").modal();
+  });
+
   $(".delete-challenge").click(function(_e) {
     ezQuery({
       title: "Delete Challenge",
@@ -435,6 +440,16 @@ $(() => {
     let vueContainer = document.createElement("div");
     document.querySelector("#challenge-flags").appendChild(vueContainer);
     new flagList({
+      propsData: { challenge_id: window.CHALLENGE_ID }
+    }).$mount(vueContainer);
+  }
+
+  // Load TopicsList component
+  if (document.querySelector("#challenge-topics")) {
+    const topicsList = Vue.extend(TopicsList);
+    let vueContainer = document.createElement("div");
+    document.querySelector("#challenge-topics").appendChild(vueContainer);
+    new topicsList({
       propsData: { challenge_id: window.CHALLENGE_ID }
     }).$mount(vueContainer);
   }
