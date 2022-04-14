@@ -180,7 +180,6 @@ def import_ctf(backup, erase=True):
         "db/teams.json",
         "db/users.json",
         "db/challenges.json",
-        "db/dynamic_challenge.json",
         "db/flags.json",
         "db/hints.json",
         "db/unlocks.json",
