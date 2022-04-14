@@ -7,7 +7,6 @@ from CTFd.utils.decorators import (
     authed_only,
     during_ctf_time_only,
     require_complete_profile,
-    require_verified_emails,
 )
 from CTFd.utils.decorators.visibility import check_challenge_visibility
 from CTFd.utils.helpers import get_errors, get_infos
